@@ -26,3 +26,4 @@ Status: ✅ delayed, checked in game · 🧪 delayed in code, not yet checked in
 | Autopilots on `OnFlyByWire` (MechJeb's attitude control and others) | `OnFlyByWire` | ➖ Run after `FlyByWireDelay`, on board. Their *commands* are the bridge's job | — | ➖ |
 | Science transmission | Stock / RA transmitters | ➖ Data flows *from* the vessel, so no command delay applies | — | ➖ |
 | EVA kerbals, crewed pods with control | — | ➖ Local control: no delay | — | ➖ |
+| Any input to a vessel with no signal, when stock's "Require Signal for Control" is off | `DelayService.Applies` returns false | ➖ Stock allows control without a signal, and there's no path to delay along | — | ➖ |

@@ -2,7 +2,9 @@ namespace LightLag
 {
     /// <summary>
     /// What an uncrewed vessel does once its signal is lost and every input already sent has
-    /// arrived. Inputs that were in flight when the signal dropped still arrive first.
+    /// arrived. Inputs that were in flight when the signal dropped still arrive first. Applies
+    /// only while stock CommNet's "Require Signal for Control" is on; with it off, a vessel
+    /// without a signal is controlled at once (<see cref="DelayService.Applies"/>).
     /// </summary>
     public static class SignalLoss
     {

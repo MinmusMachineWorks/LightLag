@@ -15,7 +15,9 @@ namespace LightLag
     /// their own corrections act on board without delay.
     ///
     /// Only changes are queued: a state equal to the last one queued is skipped. The queue isn't
-    /// saved; input still in flight is lost on a scene change.
+    /// saved; input still in flight is lost on a scene change. When delay stops applying (local
+    /// control, delay turned off, or no signal with stock's "Require Signal for Control" off),
+    /// input still in flight is dropped and the player's input acts at once.
     /// </summary>
     public class FlyByWireDelay
     {
@@ -44,7 +46,7 @@ namespace LightLag
         {
             if (!DelayService.Applies(_vessel))
             {
-                if (_wasDelayed) Log.Info($"{_vessel.vesselName}: delay off (local control or disabled); {_queue.Count} pending inputs dropped");
+                if (_wasDelayed) Log.Info($"{_vessel.vesselName}: delay off (local control, no signal required, or disabled); {_queue.Count} pending inputs dropped");
                 _queue.Clear();
                 _lastQueued = null;
                 _delivered = null;

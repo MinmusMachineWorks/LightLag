@@ -81,6 +81,10 @@ namespace LightLag
             {
                 text = Localize("#LightLag_Readout_Local");
             }
+            else if (DelayService.NoSignalNeeded(vessel))
+            {
+                text = Localize("#LightLag_Readout_NoSignalNotRequired");
+            }
             else
             {
                 double delay = DelayService.GetDelay(vessel);

@@ -23,20 +23,21 @@ The settings are under **Difficulty → Advanced**, next to stock CommNet's:
 | Light-speed delay | On | Delay commands to uncrewed vessels |
 | Round-trip delay | Off | Commands take effect after the signal reaches the vessel and comes back |
 | Speed of light multiplier | 1.00 | Above 1 shortens every delay; below 1 lengthens it |
-| Throttle on signal loss | Cut | Cut or hold an uncrewed vessel's throttle when it loses its signal |
+| Throttle on signal loss | Cut | Cut or hold an uncrewed vessel's throttle when it loses its signal. Only with stock's "Require Signal for Control" on |
 
 ## What you see in flight
 
 A line under the stock time display shows the active vessel's state:
 - **Signal delay 2.31 s · 4 in flight · 2 queued:** the delay, how many changes of stick and throttle input are still on their way, and how many commands are queued.
-- **No signal: commands can't be sent:** new input isn't sent. Input already sent still arrives; then the stick centers, and the throttle is cut or held per the setting.
+- **No signal: commands can't be sent:** stock's "Require Signal for Control" is on, so new input isn't sent. Input already sent still arrives; then the stick centers, and the throttle is cut or held per the setting.
+- **No signal, none required: no delay:** "Require Signal for Control" is off, so stock lets you control the vessel without a signal, and there's no path to delay along. Input acts at once.
 - **Local control: no delay:** crew aboard, or an EVA kerbal.
 
 The stock throttle gauge shows the throttle you commanded; the vessel follows it after the delay. The SAS, RCS and gear buttons and the navball's SAS modes show the vessel's actual state, so they change when the command arrives.
 
 ## Command queue
 
-Staging, action groups (custom 1–10, abort, gear, lights, brakes), SAS and RCS toggles and SAS modes don't act at once on a vessel with delay. They're queued and run when the signal arrives. With no signal they aren't sent at all.
+Staging, action groups (custom 1–10, abort, gear, lights, brakes), SAS and RCS toggles and SAS modes don't act at once on a vessel with delay. They're queued and run when the signal arrives. With no signal they aren't sent at all, unless "Require Signal for Control" is off; then they act at once.
 
 Click the readout to open the **command queue** window for the active vessel:
 - **Countdowns:** when each command arrives and when it runs.

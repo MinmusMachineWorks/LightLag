@@ -13,7 +13,9 @@ namespace LightLag
 
         /// <summary>
         /// True when commands to this vessel are delayed: delay is enabled, CommNet is running,
-        /// and the vessel has no local control.
+        /// the vessel has no local control, and it either has a connection or stock CommNet's
+        /// "Require Signal for Control" is on. With that setting off, a vessel without a signal
+        /// is controlled at once, as stock allows.
         /// </summary>
         public static bool Applies(Vessel vessel)
         {
@@ -21,12 +23,31 @@ namespace LightLag
             if (settings == null || !settings.delayEnabled) return false;
             if (!CommNetScenario.CommNetEnabled) return false;
             if (vessel == null || vessel.connection == null) return false;
+            if (LocalControl.Has(vessel)) return false;
+            return vessel.connection.IsConnected || SignalRequired;
+        }
+
+        /// <summary>
+        /// Stock CommNet's "Require Signal for Control" (<c>CommNetParams.requireSignalForControl</c>).
+        /// True when there's no game, so the stricter rule holds by default.
+        /// </summary>
+        public static bool SignalRequired =>
+            HighLogic.CurrentGame?.Parameters?.CustomParams<CommNetParams>()?.requireSignalForControl ?? true;
+
+        /// <summary>
+        /// True when the vessel has no signal but stock doesn't require one, so it's controlled
+        /// without delay. False under local control.
+        /// </summary>
+        public static bool NoSignalNeeded(Vessel vessel)
+        {
+            if (vessel?.connection == null || vessel.connection.IsConnected || SignalRequired) return false;
             return !LocalControl.Has(vessel);
         }
 
         /// <summary>
         /// Seconds until a command sent now reaches the vessel (doubled with round-trip delay).
-        /// 0 when delay doesn't apply, <see cref="double.PositiveInfinity"/> when there's no connection.
+        /// 0 when delay doesn't apply (including no signal with "Require Signal for Control" off),
+        /// <see cref="double.PositiveInfinity"/> when there's no connection and a signal is required.
         /// </summary>
         public static double GetDelay(Vessel vessel)
         {

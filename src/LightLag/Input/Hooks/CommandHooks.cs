@@ -13,7 +13,8 @@ namespace LightLag
     /// A call is intercepted only when it comes from the player (<see cref="PlayerInput.Active"/>)
     /// and delay applies to the vessel. Then:
     /// <list type="bullet">
-    /// <item>no signal: the command isn't sent, and a message says so;</item>
+    /// <item>no signal, with stock's "Require Signal for Control" on: the command isn't sent, and
+    /// a message says so (with it off, delay doesn't apply and the call runs at once);</item>
     /// <item>a delay under half a physics frame, with no extra delay set: the call runs at once;</item>
     /// <item>otherwise the command goes into the vessel's queue and the original call is skipped.</item>
     /// </list>

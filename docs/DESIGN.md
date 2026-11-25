@@ -20,7 +20,7 @@ The background research is in `../COMMNET_RT_FEASIBILITY.md` and the repo plan i
 | Settings | `LightLagParams` (done) | M0 |
 | Delay | `DelayService` (done): per-vessel delay from `ControlPath`, computed on each call (a few links, cheap); `LocalControl` (done) | M1 |
 | Steering and throttle | `FlyByWireDelay` (done): queue the player's `ctrlState` with an arrival time, replay it after the delay. Owned by `LightLagVessel` (done), a plain VesselModule on loaded vessels | M1 |
-| Signal loss | `SignalLoss` (done): input already sent still arrives; then the stick centers and the throttle is cut or held | M1 |
+| Signal loss | `SignalLoss` (done): input already sent still arrives; then the stick centers and the throttle is cut or held. Only while stock's "Require Signal for Control" is on (`DelayService.SignalRequired`) | M1 |
 | Readout | `DelayReadout` (done): IMGUI line under the stock time display | M1 |
 | Player context | `PlayerInput` (done): a depth counter that Harmony sets around the player's entry points, `FlightInputHandler.Update`, `ActionGroupToggleButton.SetToggle` and `VesselAutopilotUI.OnClickButton` | M2 |
 | Discrete hooks | `CommandHooks` (done): prefixes on `StageManager.ActivateNextStage`, `ActionGroupList.ToggleGroup` and `SetGroup`, and `VesselAutopilot.SetMode`. They queue a command only in player context | M2 |
@@ -35,7 +35,7 @@ The background research is in `../COMMNET_RT_FEASIBILITY.md` and the repo plan i
 
 - **One way:** delay = Σ over the links of `ControlPath` of |a.position − b.position| ÷ (c × `lightSpeedMultiplier`), with c = 299,792,458 m/s. The path runs to the nearest control source, which CommNet already picks through `FindClosestControlSource`.
 - **Round trip:** `roundTrip` doubles it.
-- **No connection:** the delay is infinite, and nothing new can be sent.
+- **No connection:** with stock's "Require Signal for Control" on, the delay is infinite and nothing new can be sent. With it off, no delay applies.
 - **Local control:** the delay is 0.
 
 ## 4. Public API (M3; sketch)
@@ -47,7 +47,7 @@ public static class LightLagAPI
 {
     public static bool IsEnabled();
     public static bool HasLocalControl(Guid vesselId);
-    public static double GetDelay(Guid vesselId);        // seconds; +Infinity when not connected
+    public static double GetDelay(Guid vesselId);        // seconds; +Infinity when not connected and a signal is required, 0 when no delay applies
     public static bool IsConnected(Guid vesselId);
     public static bool Enqueue(Guid vesselId, ConfigNode command);   // Executor, ReflectionType, ReflectionPopMethod, QueueLabel, caller data
     public static event Action<Guid, ConfigNode> CommandArrived;
@@ -59,7 +59,7 @@ public static class LightLagAPI
 **How a command travels (M2):**
 - **Sent:** a player command on a vessel with delay becomes a `QueuedCommand` with `SentUT`, `ArrivalUT` = sent + delay, and `ExecuteUT` = the later of arrival and sent + the vessel's extra delay. The original call is skipped.
 - **Pass-through:** with a delay under half a physics frame and no extra delay, the call just runs.
-- **No signal:** the command isn't sent; a message says so.
+- **No signal:** with stock's "Require Signal for Control" on, the command isn't sent, and a message says so. With it off, delay doesn't apply and the command runs at once.
 - **Runs:** `LightLagVessel` runs due commands each physics frame while the vessel is off rails, outside player context, so the hooks let them through. A failure (staging on a vessel that's no longer active, a SAS mode the vessel can't hold) shows a message.
 - **Cancel:** a cancel is a signal too. The window allows it only while now + delay is before `ExecuteUT`, and the command is dropped if the cancel arrives first.
 - **Extra delay:** per vessel, saved, and applied to discrete commands sent afterwards. It doesn't apply to steering and throttle, or under local control.
@@ -96,7 +96,7 @@ An unreadable entry is dropped with a warning in the log.
 | 2 | One-way or round-trip delay | Decided: one way by default, with round trip as a setting |
 | 3 | Do commands already sent still arrive after signal loss? | Decided: yes, for steering and throttle (M1) and for discrete commands (M2) |
 | 4 | Which part-menu actions are exempt? | Open (a `skip_control`-style category plus a list) |
-| 5 | Control with no signal | Proposed: stock "Require Signal for Control"; no stricter rule of our own |
+| 5 | Control with no signal | Decided: follow stock's "Require Signal for Control". **On:** nothing new is sent; input and commands already sent still arrive, then the stick centers and the throttle is cut or held. This is stricter than stock's partial control, which still allows staging and action groups without a signal, because a command can't reach the vessel without one. **Off:** delay doesn't apply, so the vessel is controlled at once, as stock allows; input still in flight is dropped, and queued commands still run when due |
 | 6 | Commands for unloaded vessels | Decided (M2): kept in the save; overdue ones run in order on load, with a message |
 | 7 | Which calls count as the player's? | Decided (M2): only those made inside `FlightInputHandler.Update`, `ActionGroupToggleButton.SetToggle` and `VesselAutopilotUI.OnClickButton`. KSP's and other mods' calls stay instant |
 
@@ -119,6 +119,7 @@ An unreadable entry is dropped with a warning in the log.
 - **Time warp:** on-rails warp can jump past a command within one frame, and staging can't run on rails. `WarpGuard` drops on-rails warp to 1× (physics warp is left alone) when the next command is within three frames at the current rate plus a second; commands wait while the vessel is packed.
 - **Typing in the queue window:** IMGUI text fields don't stop KSP's key bindings, so the window sets a `KEYBOARDINPUT` lock while its field has focus.
 - **Settings section:** `LightLagParams` uses `Section = "Advanced"` and stock CommNet's `DisplaySection` (`#autoLoc_6002170`), with `SectionOrder = 2`, so it shows up right after the CommNet settings.
+- **Occlusion modifiers:** stock blocks a link with a sphere of the body's radius × `occlusionMultiplierVac` (airless, default 0.9) or `occlusionMultiplierAtm` (default 0.75), so by default links pass through a planet's outer 10–25%. 1.0 matches RemoteTech, which uses the full radius less 5 m. RealAntennas ignores both settings and always occludes with the full radius.
 - **RealAntennas and plasma:** RA overrides `CommNetwork.TryConnect` and never calls `GetSignalStrengthMultiplier`, so stock's plasma penalty doesn't reach RA links. A RealAntennas PR is planned. Until then, a vessel in plasma under RA keeps its link.
 
 ## 8. Milestones
