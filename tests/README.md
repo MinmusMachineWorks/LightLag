@@ -49,6 +49,7 @@ The harness temporarily lowers the speed-of-light multiplier so that the delay i
 | non-player commands are instant | a direct `ActionGroups.SetGroup(SAS, true)`, outside any player entry point (as KSP or MechJeb would call it), takes effect in the same frame |
 | SAS mode click arrives after the delay | invoking the navball's `VesselAutopilotUI.OnClickButton` changes `Autopilot.Mode` only after the delay (± 3 physics frames); Prograde, or StabilityAssist if another mode is set |
 | part-menu button arrives after the delay | a retracted solar panel's or antenna's Extend, sent inside player context the way a part-menu click is, changes its deploy state only after the delay (± 3 physics frames); the harness retracts it again. Needs a retractable deployable part |
+| science dialog Discard arrives after the delay | a rerunnable experiment with no data (thermometer, barometer…) is run at once, outside player context; pressing Discard on its results page removes the data only after the delay (± 3 physics frames). Needs one that can run where the vessel is; its own discard resets it |
 | queued command is saved | while that click is queued, `LightLagVessel`'s save holds a `COMMAND` with `type = SasMode` and the mode |
 
 ## Space Center tests

@@ -140,6 +140,9 @@ namespace LightLag.Tests
 
                     // 7. A part-menu button (Extend) arrives after the delay.
                     yield return StartCoroutine(PartEventTest(v, mod, delay));
+
+                    // 8. Discard in the science results dialog arrives after the delay.
+                    yield return StartCoroutine(ScienceDialogTest(v, delay));
                 }
                 finally
                 {
@@ -161,6 +164,7 @@ namespace LightLag.Tests
             "delay matches the control path", "no phantom input when delay starts", "throttle arrives after the delay",
             "non-player commands are instant",
             "SAS mode click arrives after the delay", "queued command is saved", "part-menu button arrives after the delay",
+            "science dialog Discard arrives after the delay",
         };
 
         private IEnumerator PartEventTest(Vessel v, Assembly mod, double delay)
@@ -207,6 +211,59 @@ namespace LightLag.Tests
                 BaseEvent retract = deployable.Events["Retract"];
                 if (deployable.retractable && retract != null && retract.active) retract.Invoke();
             }
+        }
+
+        private IEnumerator ScienceDialogTest(Vessel v, double delay)
+        {
+            const string name = "science dialog Discard arrives after the delay";
+            // A rerunnable experiment with no data, run outside player context (so at once).
+            ModuleScienceExperiment experiment = null;
+            foreach (ModuleScienceExperiment e in v.parts.SelectMany(p => p.FindModulesImplementing<ModuleScienceExperiment>())
+                         .Where(e => e.rerunnable && !e.Inoperable && !e.Deployed && e.GetData().Length == 0))
+            {
+                e.DeployExperiment();
+                for (int i = 0; i < 250 && e.GetData().Length == 0; i++) yield return new WaitForFixedUpdate();
+                if (e.GetData().Length > 0) { experiment = e; break; }
+            }
+            if (experiment == null)
+            {
+                Result("SKIP", name, "no rerunnable experiment that can run here");
+                yield break;
+            }
+
+            // Its results dialog page opens on its own; press Discard the way the button does.
+            var dialog = KSP.UI.Screens.Flight.Dialogs.ExperimentsResultDialog.Instance;
+            for (int i = 0; i < 50 && (dialog == null || dialog.currentPage == null); i++)
+            {
+                yield return null;
+                dialog = KSP.UI.Screens.Flight.Dialogs.ExperimentsResultDialog.Instance;
+            }
+            ExperimentResultDialogPage page = dialog?.pages.FirstOrDefault(p => p.host == experiment.part);
+            if (page == null)
+            {
+                Result("SKIP", name, $"{experiment.experimentID} ran, but its results dialog didn't open");
+                yield break;
+            }
+            double sent = Planetarium.GetUniversalTime();
+            page.OnDiscardData(page.pageData);
+
+            double? gone = null, early = null;
+            while (Planetarium.GetUniversalTime() - sent < delay + 5.0)
+            {
+                yield return new WaitForFixedUpdate();
+                double t = Planetarium.GetUniversalTime() - sent;
+                if (experiment.GetData().Length == 0)
+                {
+                    if (t < delay - 3 * Time.fixedDeltaTime) early = t;
+                    gone = t;
+                    break;
+                }
+            }
+            double slack = 3 * Time.fixedDeltaTime;
+            bool pass = gone.HasValue && !early.HasValue && Math.Abs(gone.Value - delay) <= slack;
+            Result(pass ? "PASS" : "FAIL", name,
+                gone.HasValue ? $"{experiment.experimentID} Discard: delay {delay:0.000} s, data gone after {gone.Value:0.000} s (slack {slack:0.000} s)"
+                              : $"{experiment.experimentID} Discard: delay {delay:0.000} s, data still on board after {delay + 5.0:0.0} s");
         }
 
         private static int? PendingInputs(Vessel v)

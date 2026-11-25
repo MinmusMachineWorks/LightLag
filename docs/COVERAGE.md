@@ -18,10 +18,12 @@ Status: ✅ delayed, checked in game · 🧪 delayed in code, not yet checked in
 | SAS mode buttons on the navball | `VesselAutopilot.SetMode`, from `VesselAutopilotUI.OnClickButton` | `CommandHooks` prefix → `SasModeCommand` | M2 | ✅ (harness test, 2026-11-25) |
 | Part-menu buttons on the active vessel (stock and mods) | `BaseEvent.Invoke`, from `UIPartActionButton.OnClick` | `PartMenuHooks` prefix → `PartEventCommand`; symmetry counterparts in one command | M3 | 🧪 (harness test) |
 | Part-menu controls on the active vessel: toggle, slider, cycle, option list, number field | `UIPartActionFieldItem.SetFieldValue` | `PartMenuHooks` prefix → `PartFieldCommand`; a slider drag merged into one | M3 | 🧪 |
-| Part-menu buttons and controls listed in `Exemptions.cfg`, or marked `skip_control` | Same | ➖ Don't command the vessel: viewpoint, windows and readouts, names, targets and tallies, cosmetics (`PART_MENUS.md`) | — | ➖ |
+| Part-menu buttons and controls listed in `Exemptions/*.cfg`, or marked `skip_control` | Same | ➖ Don't command the vessel: viewpoint, windows and readouts, names, targets and tallies, cosmetics (`PART_MENUS.md`) | — | ➖ |
 | Part-menu buttons and controls marked `skip_delay` | Same | ➖ Need a signal, no delay (RemoteTech's marker) | — | ➖ |
 | Part menus of other vessels' parts (EVA reach, setting a target) | Same | ➖ Not a command to the active vessel | — | ➖ |
-| Commands sent from windows opened from a part menu: the Review Data dialog (Transmit, Keep, Discard), robotics controller, mod windows (KAS winch, Konstruction, MKS Orbital Logistics, EL, RealAntennas targeting) | The windows' own buttons | Not hooked; opening the window is exempt | later | ⬜ |
+| Science results dialog (Review Data): Transmit, Discard, Reset, Process in lab | `ExperimentsResultDialog.addPage` prefix wraps the page's callbacks (`ScienceHooks`) → `ScienceCommand`; the data stays on board until it runs. Keep is instant (changes nothing on board). Covers any module, stock or mod, that opens this dialog with its own method as the callback | M3 | ✅ |
+| Commands sent from other windows opened from a part menu: robotics controller, mod windows (KAS winch, Konstruction, MKS Orbital Logistics, EL, RealAntennas targeting) | The windows' own buttons | Not hooked; opening the window is exempt. They should be delayed | next | ⬜ |
+| KerbNet window | — | ➖ View only (map modes, waypoints are bookkeeping) | — | ➖ |
 | Part-menu resource flow and priority toggles | `UIPartActionResource*` (not `SetFieldValue`) | Not hooked | later | ⬜ |
 | MechJeb autopilots | MechJebRTBridge seams | Bridge backend for `LightLagAPI` | M4 | ⬜ |
 | kOS | kOS connectivity manager | Needs kOS-side support | later | ⬜ |

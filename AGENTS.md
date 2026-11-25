@@ -28,7 +28,7 @@ Read these before changing anything:
 |---|---|
 | Add, remove, or change a Harmony patch or input hook | `docs/COVERAGE.md` (row status and entry point) and the header comment of the hook's class |
 | Deliberately leave an input path undelayed | Say why in a comment at the hook **and** in `docs/COVERAGE.md` |
-| Exempt a part-menu event or field (a new mod in the set, a UI-only button) | `GameData/LightLag/Exemptions.cfg` and the table in `docs/PART_MENUS.md`, which says how to apply the test |
+| Exempt a part-menu event or field (a new mod in the set, a UI-only button) | The mod's file in `GameData/LightLag/Exemptions/` (one per mod, `Stock.cfg` for stock) and the table in `docs/PART_MENUS.md`, which says how to apply the test |
 | Add or change a setting | `Settings.cs`, `Localization/en-us.cfg`, and the README settings table |
 | Change what's saved in the queue | `docs/DESIGN.md` persistence notes |
 | Resolve an open question | `docs/DESIGN.md` (mark it decided and say what was chosen) |
@@ -56,9 +56,10 @@ src/LightLag/                 LightLag.dll
   Input/PlayerInput.cs        player context: set around the player's entry points by Harmony
   Input/Hooks/CommandHooks.cs prefixes on staging, action groups and SAS modes; queue in player context
   Input/Hooks/PartMenuHooks.cs part-menu buttons and controls on the active vessel → part commands
+  Input/Hooks/ScienceHooks.cs science results dialog: Transmit, Discard, Lab → ScienceCommand
   Input/Exemptions.cs         part-menu exemptions: LIGHTLAG_EXEMPTIONS nodes, skip_delay/skip_control
   Queue/QueuedCommand.cs      a discrete command: sent, arrival and execute UTs, cancel, save/load
-  Queue/Commands/*.cs         StageCommand, ActionGroupCommand, SasModeCommand, PartEventCommand, PartFieldCommand
+  Queue/Commands/*.cs         StageCommand, ActionGroupCommand, SasModeCommand, PartEventCommand, PartFieldCommand, ScienceCommand
   Queue/PartRef.cs            a saved part and module reference (persistentId, module index and class)
   Queue/CommandQueue.cs       a vessel's commands in run order; runs due ones, handles cancels
   Rules/SignalLoss.cs         stick centered, throttle cut or held, once in-flight input has arrived
@@ -70,7 +71,7 @@ docs/DESIGN.md                design, decisions, gotchas, milestones
 docs/COVERAGE.md              input coverage matrix
 docs/PART_MENUS.md            which part-menu buttons and controls are delayed, and why
 GameData/LightLag/            packaging root (Plugins/ and LightLag.version are build outputs, gitignored)
-  Exemptions.cfg              part-menu events and fields that aren't delayed (stock and the mod set)
+  Exemptions/*.cfg            part-menu events and fields that aren't delayed: Stock.cfg, then one file per mod in the set
 tests/LightLag.Tests/         dev-only in-game test harness (separate plugin, never shipped)
 ckan/metadata.json            CKAN metadata template for the shared release workflow
 tools/dev_ckan.py             writes ckan/LightLag-dev.ckan, a metapackage of those relations for dev installs

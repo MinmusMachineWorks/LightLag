@@ -1,6 +1,6 @@
 # Part menus: what's delayed
 
-Every button (`KSPEvent`) and control (`KSPField` with a flight UI control) in the active vessel's part menus is delayed, except the ones below. This is LightLag's own analysis of stock KSP 1.12.5 and the mod set, done on 2026-11-25. `GameData/LightLag/Exemptions.cfg` implements it; keep the two in sync (AGENTS.md, Rule #1).
+Every button (`KSPEvent`) and control (`KSPField` with a flight UI control) in the active vessel's part menus is delayed, except the ones below. This is LightLag's own analysis of stock KSP 1.12.5 and the mod set, done on 2026-11-25. `GameData/LightLag/Exemptions/` implements it, with `Stock.cfg` and one file per mod; keep the two in sync (AGENTS.md, Rule #1).
 
 ## The test
 
@@ -29,7 +29,7 @@ Everything not listed above, including:
 
 ## Not covered (instant whatever the table says)
 
-- **Buttons inside windows** opened from a part menu, because only the part menu itself is hooked. This includes the Review Data dialog's Transmit, Keep and Discard; KerbNet; the robotics controller; and the mod windows above.
+- **Buttons inside other windows** opened from a part menu: the robotics controller and the mod windows above. Buttons in them that command the vessel should be delayed, and will be, one window at a time (COVERAGE.md). The science results dialog is covered: Transmit, Discard, Reset and Process in lab are delayed, and Keep is instant. KerbNet only shows things, so it stays instant.
 - **Resource flow and priority toggles** in a part menu. They don't use `SetFieldValue`.
 
 ## Differences from RemoteTech
@@ -38,4 +38,4 @@ RemoteTech's list of instant buttons is only renaming, crew transfer and the cam
 
 ## Adding a mod
 
-When a mod joins the set, list its flight part-menu buttons and fields and apply the test. For a quick list, search its source for `KSPEvent` with `guiActive = true`. Add the instant ones to `Exemptions.cfg` under a comment naming the mod, and to the table above.
+When a mod joins the set, list its flight part-menu buttons and fields and apply the test. For a quick list, search its source for `KSPEvent` with `guiActive = true`. Put the instant ones in a new `Exemptions/<Mod>.cfg`, and add them to the table above.

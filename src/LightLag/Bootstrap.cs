@@ -17,6 +17,7 @@ namespace LightLag
     /// <item>Part menus, in <see cref="PartMenuHooks"/>: <c>UIPartActionButton.OnClick</c> (player
     /// entry point), <c>BaseEvent.Invoke</c> (both overloads), <c>UIPartActionFieldItem.SetFieldValue</c>,
     /// <c>UIPartActionFloatEdit.Setup</c> (suppressed), <c>UIPartActionFloatRange.UpdateItem</c> (postfix).</item>
+    /// <item>The science results dialog, in <see cref="ScienceHooks"/>: <c>ExperimentsResultDialog.addPage</c>.</item>
     /// </list>
     /// </summary>
     [KSPAddon(KSPAddon.Startup.Instantly, once: true)]
@@ -59,6 +60,9 @@ namespace LightLag
                 prefix: new HarmonyMethod(typeof(PartMenuHooks), nameof(PartMenuHooks.SetFieldValuePrefix))));
             Count(Patch(harmony, "UIPartActionFloatRange:UpdateItem",
                 postfix: new HarmonyMethod(typeof(PartMenuHooks), nameof(PartMenuHooks.FloatRangeUpdatePostfix))));
+
+            Count(Patch(harmony, "KSP.UI.Screens.Flight.Dialogs.ExperimentsResultDialog:addPage",
+                prefix: new HarmonyMethod(typeof(ScienceHooks), nameof(ScienceHooks.AddPagePrefix))));
 
             Log.Info($"applied {ok} of {total} patches");
         }
