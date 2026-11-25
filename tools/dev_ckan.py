@@ -73,7 +73,7 @@ def main():
 
     ckan = build()
     OUTPUT.write_text(json.dumps(ckan, indent=4) + "\n")
-    print(f"wrote {OUTPUT.relative_to(ROOT)}: {ckan['identifier']} {ckan['version']}")
+    print(f"wrote {OUTPUT}: {ckan['identifier']} {ckan['version']}")
     for key in RELATIONS:
         if key in ckan:
             print(f"  {key}: {', '.join(r['name'] for r in ckan[key])}")
