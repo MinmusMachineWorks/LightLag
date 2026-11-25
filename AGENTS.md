@@ -67,7 +67,7 @@ src/LightLag/                 LightLag.dll
   Queue/CommandQueue.cs       a vessel's commands in run order; runs due ones, handles cancels
   Rules/SignalLoss.cs         stick centered, throttle cut or held, once in-flight input has arrived
   Rules/WarpGuard.cs          drops time warp before a queued command runs
-  UI/SignalBarWidget.cs       delay readout and flight computer button on the stock signal bar (flight and map)
+  UI/SignalBarWidget.cs       delay readout and flight computer button in the stock signal icon row (flight and map)
   UI/DelayStatus.cs           the active vessel's delay state as short and long text
   UI/FlightComputerWindow.cs  flight computer: control path, input in flight, extra delay, queue with cancel
   UI/Messages.cs              on-screen messages
