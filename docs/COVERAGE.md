@@ -18,10 +18,11 @@ Status: ✅ delayed, checked in game · 🧪 delayed in code, not yet checked in
 | SAS mode buttons on the navball | `VesselAutopilot.SetMode`, from `VesselAutopilotUI.OnClickButton` | `CommandHooks` prefix → `SasModeCommand` | M2 | ✅ (harness test, 2026-11-25) |
 | Part-menu buttons on the active vessel (stock and mods) | `BaseEvent.Invoke`, from `UIPartActionButton.OnClick` | `PartMenuHooks` prefix → `PartEventCommand`; symmetry counterparts in one command | M3 | 🧪 (harness test) |
 | Part-menu controls on the active vessel: toggle, slider, cycle, option list, number field | `UIPartActionFieldItem.SetFieldValue` | `PartMenuHooks` prefix → `PartFieldCommand`; a slider drag merged into one | M3 | 🧪 |
-| Part-menu buttons and controls listed in `Exemptions.cfg`, or marked `skip_control` | Same | ➖ Don't command the vessel: renaming, crew transfer, camera, mod "open window" buttons | — | ➖ |
+| Part-menu buttons and controls listed in `Exemptions.cfg`, or marked `skip_control` | Same | ➖ Don't command the vessel: viewpoint, windows and readouts, names and targets, crew on board, construction settings, cosmetics (`PART_MENUS.md`) | — | ➖ |
 | Part-menu buttons and controls marked `skip_delay` | Same | ➖ Need a signal, no delay (RemoteTech's marker) | — | ➖ |
 | Part menus of other vessels' parts (EVA reach, setting a target) | Same | ➖ Not a command to the active vessel | — | ➖ |
-| Commands sent from mod windows (KAS winch, Konstruction, MKS Orbital Logistics, EL, RealAntennas targeting) | The mods' own windows | Not hooked; opening the window is exempt | later | ⬜ |
+| Commands sent from windows opened from a part menu: the Review Data dialog (Transmit, Keep, Discard), robotics controller, mod windows (KAS winch, Konstruction, MKS Orbital Logistics, EL, RealAntennas targeting) | The windows' own buttons | Not hooked; opening the window is exempt | later | ⬜ |
+| Part-menu resource flow and priority toggles | `UIPartActionResource*` (not `SetFieldValue`) | Not hooked | later | ⬜ |
 | MechJeb autopilots | MechJebRTBridge seams | Bridge backend for `LightLagAPI` | M4 | ⬜ |
 | kOS | kOS connectivity manager | Needs kOS-side support | later | ⬜ |
 | Dish targeting (RealAntennas) | RA targeting window | Not decided | later | ⬜ |

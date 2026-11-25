@@ -49,7 +49,7 @@ On-rails time warp drops to 1× before a queued command runs; physics warp is le
 Only your own commands are delayed. KSP's (SAS switching itself off) and other mods' (MechJeb staging) run on board without delay.
 
 **Part menus:**
-- **Instant:** buttons that don't command the vessel. These are renaming, crew transfer and the camera (the same list as RemoteTech's), plus mod buttons that only open a window. They're listed in `GameData/LightLag/Exemptions.cfg`, which other mods can extend with a Module Manager patch (see the file). A mod can also mark an event or field with RemoteTech's `skip_delay` (needs a signal, no delay) or `skip_control` (no checks) category.
+- **Instant:** buttons and controls that don't command the vessel: Control From Here and the camera, Review Data, KerbNet and other windows, renaming and targets, crew transfer, construction settings like autostrut, plus mod buttons that only open a window. [docs/PART_MENUS.md](docs/PART_MENUS.md) has the full analysis; `GameData/LightLag/Exemptions.cfg` holds the list, and other mods can extend it with a Module Manager patch (see the file). A mod can also mark an event or field with RemoteTech's `skip_delay` (needs a signal, no delay) or `skip_control` (no checks) category.
 - **Other vessels' parts** (an EVA kerbal working on a part, setting a target) aren't delayed.
 - **Symmetry:** clicking a button on a part with symmetry queues one command for all its counterparts.
 - **Sliders:** a drag is sent as one change, and the slider shows the value on its way. Toggles and other controls show the part's actual state until the command arrives.
@@ -57,7 +57,8 @@ Only your own commands are delayed. KSP's (SAS switching itself off) and other m
 ## Known limitations
 
 - Stick and throttle input still in flight is lost on a scene change or reload. Queued commands are kept.
-- Buttons inside mod windows (KAS winch, Konstruction, MKS Orbital Logistics, RealAntennas targeting) aren't delayed: only the part menu is covered.
+- Buttons inside windows opened from a part menu aren't delayed: the Review Data dialog's Transmit and Discard, KerbNet, the robotics controller, and mod windows (KAS winch, Konstruction, MKS Orbital Logistics, RealAntennas targeting). Only the part menu itself is covered.
+- Resource flow and priority toggles in part menus aren't delayed.
 - Staging works only on the active vessel, so a staging command that arrives after you switch vessels fails.
 - The queue window doesn't block clicks to the scene behind it.
 
