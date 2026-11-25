@@ -29,15 +29,15 @@ The settings are under **Difficulty → Advanced**, next to stock CommNet's:
 
 A line under the stock time display shows the active vessel's state:
 - **Signal delay 2.31 s · input arriving · 2 queued:** the delay, whether stick and throttle input you gave is still on its way, and how many commands are queued. The queue window shows how long until the last of your stick and throttle input arrives (it can't be cancelled), and lists each command.
-- **No signal: commands can't be sent:** stock's "Require Signal for Control" is on, so new input isn't sent. Input already sent still arrives; then the stick centers, and the throttle is cut or held per the setting.
-- **No signal, none required: no delay:** "Require Signal for Control" is off, so stock lets you control the vessel without a signal, and there's no path to delay along. Input acts at once.
+- **No signal: commands can't be sent:** stock's "Require Signal for Control" is on, so stock locks every control, and LightLag sends nothing new. Input already sent still arrives; then the stick centers, and the throttle is cut or held per the setting.
+- **No signal, none required: no delay:** "Require Signal for Control" is off, so stock gives the vessel partial control without a signal, and there's no path to delay along. What stock allows (staging, action groups, SAS and RCS) acts at once; stock still locks the stick, throttle and translation.
 - **Local control: no delay:** crew aboard, or an EVA kerbal.
 
 The stock throttle gauge shows the throttle you commanded; the vessel follows it after the delay. The SAS, RCS and gear buttons and the navball's SAS modes show the vessel's actual state, so they change when the command arrives.
 
 ## Command queue
 
-Staging, action groups (custom 1–10, abort, gear, lights, brakes), SAS and RCS toggles and SAS modes don't act at once on a vessel with delay. They're queued and run when the signal arrives. With no signal they aren't sent at all, unless "Require Signal for Control" is off; then they act at once. Without a signal, stock already locks the stick, throttle, SAS and RCS, so those keys simply do nothing. Staging and action groups, which stock still allows, show a "No signal: … not sent" message instead.
+Staging, action groups (custom 1–10, abort, gear, lights, brakes), SAS and RCS toggles and SAS modes don't act at once on a vessel with delay. They're queued and run when the signal arrives. With no signal they aren't sent at all, unless "Require Signal for Control" is off; then they act at once. Without a signal, stock gives an uncrewed probe no control at all ("No Telemetry"), so with "Require Signal for Control" on, every key simply does nothing before LightLag sees it.
 
 Click the readout to open the **command queue** window for the active vessel:
 - **Countdowns:** when each command arrives and when it runs.
