@@ -16,7 +16,13 @@ The harness doesn't reference LightLag. It finds the mod through KSP's loaded as
 
 ## Running
 
-Load a save and enter the Space Center. Results go to `KSP.log`:
+Load a save and enter the Space Center. Results go to `KSP.log`, but KSP writes that file in batches, so new lines can take a while to appear. Unity's `Player.log` has them at once (macOS: `~/Library/Logs/Squad/KSP/Player.log`):
+
+```
+grep -E "\[LightLag( Test)?\] |Exception" ~/Library/Logs/Squad/KSP/Player.log | tail -40
+```
+
+The `( Test)?\] ` part skips stock lines about vessels whose names start with "LightLag".
 
 ```
 [LightLag Test] PASS assembly loaded — 0.1.0.0
