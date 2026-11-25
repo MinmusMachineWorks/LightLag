@@ -21,11 +21,11 @@ The background research is in `../COMMNET_RT_FEASIBILITY.md` and the repo plan i
 | Delay | `DelayService` (done): per-vessel delay from `ControlPath`, computed on each call (a few links, cheap); `LocalControl` (done) | M1 |
 | Steering and throttle | `FlyByWireDelay` (done): queue the player's `ctrlState` with an arrival time, replay it after the delay. Owned by `LightLagVessel` (done), a plain VesselModule on loaded vessels | M1 |
 | Signal loss | `SignalLoss` (done): input already sent still arrives; then the stick centers and the throttle is cut or held. Only while stock's "Require Signal for Control" is on (`DelayService.SignalRequired`) | M1 |
-| Readout | `DelayReadout` (done): IMGUI line under the stock time display | M1 |
+| Readout | `SignalBarWidget` (done): a uGUI box attached to the right of CommNet's signal panel (`TelemetryUpdate`), so it's there in flight and map view; styled from the MET display, with the stock tooltip | M1 |
 | Player context | `PlayerInput` (done): a depth counter that Harmony sets around the player's entry points, `FlightInputHandler.Update`, `ActionGroupToggleButton.SetToggle` and `VesselAutopilotUI.OnClickButton` | M2 |
 | Discrete hooks | `CommandHooks` (done): prefixes on `StageManager.ActivateNextStage`, `ActionGroupList.ToggleGroup` and `SetGroup`, and `VesselAutopilot.SetMode`. They queue a command only in player context | M2 |
 | Queue | `CommandQueue` (done) and `QueuedCommand` with `StageCommand`, `ActionGroupCommand` and `SasModeCommand` (done), held and run by `LightLagVessel` | M2 |
-| Queue UI | `QueueWindow` (done): opened by clicking the readout; countdowns, cancel, extra delay | M2 |
+| Flight computer | `FlightComputerWindow` (done): opened from the readout; control path hop by hop, input in flight, extra delay, queue with countdowns and cancel | M2 |
 | Time warp | `WarpGuard` (done): drops on-rails warp to 1× before a queued command runs | M2 |
 | Part menus | `PartMenuHooks` (done): `BaseEvent.Invoke` inside `UIPartActionButton.OnClick`, and `UIPartActionFieldItem.SetFieldValue`, → `PartEventCommand` and `PartFieldCommand`; `ScienceHooks` wraps the science results dialog's callbacks → `ScienceCommand`; `Windows`/`WindowHooks` delay window buttons listed in `LIGHTLAG_WINDOW` nodes → `MethodCommand`; `Exemptions` reads `LIGHTLAG_EXEMPTIONS` nodes and RemoteTech's `skip_delay`/`skip_control` categories | M3 |
 | API | `LightLagAPI` | M4 |
@@ -101,7 +101,7 @@ Part commands save their target as the part's `persistentId` plus the module's i
 | 5 | Control with no signal | Decided: follow stock's "Require Signal for Control". **On:** nothing new is sent; input and commands already sent still arrive, then the stick centers and the throttle is cut or held. Stock already gives an uncrewed probe no control without a signal, so this matches it. **Off:** delay doesn't apply, so what stock's partial control allows (staging, action groups, SAS, RCS) acts at once; input still in flight is dropped, and queued commands still run when due |
 | 6 | Commands for unloaded vessels | Decided (M2): kept in the save; overdue ones run in order on load, with a message |
 | 7 | Which calls count as the player's? | Decided (M2): only those made inside `FlightInputHandler.Update`, `ActionGroupToggleButton.SetToggle`, `VesselAutopilotUI.OnClickButton` and (M3) `UIPartActionButton.OnClick`, plus part-menu controls' `SetFieldValue` and the science results dialog's Transmit, Discard and Lab callbacks (only its buttons call them), and the entry methods of windows in `LIGHTLAG_WINDOW` nodes. KSP's and other mods' calls stay instant |
-| 8 | How is stick and throttle input in flight shown? | Decided: as one indicator, not a list or a count. Holding a key sends a stream of small changes, so a count means nothing; the readout says "input arriving" and the queue window says how long until the last of it lands. Only discrete commands are listed, and only they can be cancelled |
+| 8 | How is stick and throttle input in flight shown? | Decided: as one indicator, not a list or a count. Holding a key sends a stream of small changes, so a count means nothing; the readout says "input arriving" and the flight computer says how long until the last of it lands. Only discrete commands are listed, and only they can be cancelled |
 
 ## 7. Gotchas
 
@@ -128,7 +128,8 @@ Part commands save their target as the part's `persistentId` plus the module's i
 - **Staging acts on the active vessel only:** `ActivateNextStage` is static. A `StageCommand` that comes due after the player switched vessels fails with a message.
 - **SAS mode buttons resync:** `VesselAutopilotUI.OnClickButton` returns early when `SetMode` returns false, and `LateUpdate` redraws the buttons from `Autopilot.Mode`. The hook returns false for a queued mode, so the navball shows the vessel's actual mode until the command arrives. The SAS/RCS buttons likewise follow the group's actual state.
 - **Time warp:** on-rails warp can jump past a command within one frame, and staging can't run on rails. `WarpGuard` drops on-rails warp to 1× (physics warp is left alone) when the next command is within three frames at the current rate plus a second; commands wait while the vessel is packed.
-- **Typing in the queue window:** IMGUI text fields don't stop KSP's key bindings, so the window sets a `KEYBOARDINPUT` lock while its field has focus.
+- **The signal bar is uGUI.** The readout is a child of `TelemetryUpdate`'s panel, anchored to its right edge with `LayoutElement.ignoreLayout`, so it follows the panel into map view and scales with the UI. The panel is inactive without CommNet, and the flight UI builds over the first frames, so it's attached from a coroutine; the log says where it attached. TextMeshPro needs its own assembly reference (`Unity.TextMeshPro.dll`).
+- **Typing in the flight computer:** IMGUI text fields don't stop KSP's key bindings, so the window sets a `KEYBOARDINPUT` lock while its field has focus.
 - **Settings section:** `LightLagParams` uses `Section = "Advanced"` and stock CommNet's `DisplaySection` (`#autoLoc_6002170`), with `SectionOrder = 2`, so it shows up right after the CommNet settings.
 - **Occlusion modifiers:** stock blocks a link with a sphere of the body's radius × `occlusionMultiplierVac` (airless, default 0.9) or `occlusionMultiplierAtm` (default 0.75), so by default links pass through a planet's outer 10–25%. 1.0 matches RemoteTech, which uses the full radius less 5 m. RealAntennas ignores both settings and always occludes with the full radius.
 - **RealAntennas and plasma:** RA overrides `CommNetwork.TryConnect` and never calls `GetSignalStrengthMultiplier`, so stock's plasma penalty doesn't reach RA links. A RealAntennas PR is planned. Until then, a vessel in plasma under RA keeps its link.
@@ -143,7 +144,7 @@ Part commands save their target as the part's `persistentId` plus the module's i
    - local-control exemptions.
 3. **M2:** the queue. **Code done; not checked in game yet.**
    - staging, action groups, SAS/RCS and SAS modes through it;
-   - queue window with cancel and extra delay;
+   - flight computer window with cancel and extra delay;
    - the queue is saved;
    - time warp drops before an arrival.
 4. **M3:** part menus, moved ahead so a near-stock game is fully covered. **Code done; not checked in game yet.**

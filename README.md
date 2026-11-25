@@ -27,11 +27,13 @@ The settings are under **Difficulty → Advanced**, next to stock CommNet's:
 
 ## What you see in flight
 
-A line under the stock time display shows the active vessel's state:
-- **Signal delay 2.31 s · input arriving · 2 queued:** the delay, whether stick and throttle input you gave is still on its way, and how many commands are queued. The queue window shows how long until the last of your stick and throttle input arrives (it can't be cancelled), and lists each command.
-- **No signal: commands can't be sent:** stock's "Require Signal for Control" is on, so stock locks every control, and LightLag sends nothing new. Input already sent still arrives; then the stick centers, and the throttle is cut or held per the setting.
-- **No signal, none required: no delay:** "Require Signal for Control" is off, so stock gives the vessel partial control without a signal, and there's no path to delay along. What stock allows (staging, action groups, SAS and RCS) acts at once; stock still locks the stick, throttle and translation.
-- **Local control: no delay:** crew aboard, or an EVA kerbal.
+The delay sits on the stock signal bar at the top left, just right of CommNet's signal icons, in flight and in map view. It shows a flight computer button and the active vessel's state; hover it for the details, and click it to open the **flight computer**:
+- **2.31 s** (or **2.31 s · 2 queued**): the delay, and how many commands are queued. The tooltip also says whether stick and throttle input you gave is still on its way.
+- **No signal** (in red): stock's "Require Signal for Control" is on, so stock locks every control, and LightLag sends nothing new. Input already sent still arrives; then the stick centers, and the throttle is cut or held per the setting.
+- **No delay** (no signal, none required): "Require Signal for Control" is off, so stock gives the vessel partial control without a signal, and there's no path to delay along. What stock allows (staging, action groups, SAS and RCS) acts at once; stock still locks the stick, throttle and translation.
+- **Local:** crew aboard, or an EVA kerbal. No delay.
+
+The bar entry is hidden when light-speed delay is off or CommNet isn't running.
 
 The stock throttle gauge shows the throttle you commanded; the vessel follows it after the delay. The SAS, RCS and gear buttons and the navball's SAS modes show the vessel's actual state, so they change when the command arrives.
 
@@ -39,7 +41,9 @@ The stock throttle gauge shows the throttle you commanded; the vessel follows it
 
 Staging, action groups (custom 1–10, abort, gear, lights, brakes), SAS and RCS toggles, SAS modes and the active vessel's part menus (buttons such as Extend or Deploy, and toggles, sliders and other controls) don't act at once on a vessel with delay. They're queued and run when the signal arrives. With no signal they aren't sent at all, unless "Require Signal for Control" is off; then they act at once. Without a signal, stock gives an uncrewed probe no control at all ("No Telemetry"), so with "Require Signal for Control" on, every key simply does nothing before LightLag sees it.
 
-Click the readout to open the **command queue** window for the active vessel:
+The **flight computer** (click the delay on the signal bar) shows the active vessel's signal and queue:
+- **Signal:** the delay, and the control path hop by hop: each relay or station, how far, and its share of the delay.
+- **Stick and throttle:** how long until the last of your stick and throttle input arrives. It can't be cancelled.
 - **Countdowns:** when each command arrives and when it runs.
 - **Cancel:** a cancel is a signal too, so it's allowed only if it can reach the vessel before the command runs.
 - **Extra delay:** new commands run at least this many seconds after you send them, even if the signal arrives sooner. Use it to time a command, for example staging at a moment you pick. It's saved per vessel.
@@ -61,9 +65,9 @@ Only your own commands are delayed. KSP's (SAS switching itself off) and other m
 - Stick and throttle input still in flight is lost on a scene change or reload. Queued commands are kept.
 - Resource transfers aren't delayed: part-menu resource flow and priority toggles, crew-free resource transfer, and KAS's fuel transfer window.
 - Editing a robotics controller's sequence (keyframes, length) isn't delayed; its playback buttons are.
-- Window commands that aren't on a part module (EL's build controls, MKS transfers, RealAntennas targeting, Konstruction's Dekonstructor and KonFabricator) are lost on a reload or scene change. The queue window marks them "(not saved)".
+- Window commands that aren't on a part module (EL's build controls, MKS transfers, RealAntennas targeting, Konstruction's Dekonstructor and KonFabricator) are lost on a reload or scene change. The flight computer marks them "(not saved)".
 - Staging works only on the active vessel, so a staging command that arrives after you switch vessels fails.
-- The queue window doesn't block clicks to the scene behind it.
+- The flight computer window doesn't block clicks to the scene behind it.
 
 ## Building
 

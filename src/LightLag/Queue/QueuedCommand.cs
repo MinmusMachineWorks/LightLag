@@ -21,7 +21,7 @@ namespace LightLag
         /// <summary>Name saved with the command, used to recreate it on load.</summary>
         public abstract string TypeName { get; }
 
-        /// <summary>Short text for the queue window and messages.</summary>
+        /// <summary>Short text for the flight computer and messages.</summary>
         public abstract string Label { get; }
 
         /// <summary>Runs the command on the vessel. Returns null on success, or why it couldn't run.</summary>

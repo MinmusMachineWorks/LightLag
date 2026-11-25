@@ -6,17 +6,18 @@ using UnityEngine;
 namespace LightLag
 {
     /// <summary>
-    /// The active vessel's command queue, opened by clicking the delay readout. Shows whether
-    /// stick and throttle input is still arriving, and until when (it can't be cancelled), then lists each
-    /// command with its countdown, lets the player cancel one (the cancel is itself a signal, so
-    /// it's allowed only if it can arrive before the command runs), and sets the vessel's extra
-    /// delay. Drawn with IMGUI in KSP's skin.
+    /// The flight computer: the active vessel's signal and command queue, opened from the delay
+    /// readout on the signal bar (<see cref="SignalBarWidget"/>). Shows the delay and the control
+    /// path hop by hop, whether stick and throttle input is still arriving and until when (it
+    /// can't be cancelled), the vessel's extra delay, and each queued command with its countdown
+    /// and a cancel button (the cancel is itself a signal, so it's allowed only if it can arrive
+    /// before the command runs). Drawn with IMGUI in KSP's skin.
     /// </summary>
-    internal class QueueWindow
+    internal class FlightComputerWindow
     {
         private const int WindowId = 0x4C4C5157;
         private const string ExtraDelayControl = "LightLag_ExtraDelay";
-        private const string InputLock = "LightLag_QueueWindow";
+        private const string InputLock = "LightLag_FlightComputer";
 
         private Rect _rect = new Rect(260, 100, 380, 120);
         private Guid _vesselId;
@@ -68,7 +69,8 @@ namespace LightLag
             double now = Planetarium.GetUniversalTime();
             double delay = DelayService.GetDelay(vessel);
 
-            GUILayout.Label(DelayReadout.Text(vessel) ?? Localizer.Format("#LightLag_Queue_NoDelay"));
+            GUILayout.Label(DelayStatus.Long(vessel) ?? Localizer.Format("#LightLag_Queue_NoDelay"));
+            PathLines(vessel);
 
             // Stick and throttle are analog: holding a key sends a stream of changes, so they're
             // shown as one line (still arriving, and until when), not as a list of commands.
@@ -111,6 +113,24 @@ namespace LightLag
 
             if (GUILayout.Button(Localizer.Format("#LightLag_Queue_Close"))) Close();
             GUI.DragWindow();
+        }
+
+        /// <summary>One line per hop of the control path: where it goes, how far, and its share of the delay.</summary>
+        private static void PathLines(Vessel vessel)
+        {
+            if (DelayStatus.Of(vessel, out _) != DelayStatus.State.Delay) return;
+            CommNet.CommPath path = vessel.connection?.ControlPath;
+            if (path == null || path.Count == 0) return;
+            LightLagParams settings = LightLagParams.Current;
+            double speed = DelayService.SpeedOfLight * (settings?.lightSpeedMultiplier ?? 1.0);
+            for (int i = 0; i < path.Count; i++)
+            {
+                CommNet.CommLink link = path[i];
+                if (link?.a == null || link.b == null) continue;
+                double meters = (link.a.position - link.b.position).magnitude;
+                GUILayout.Label(Localizer.Format("#LightLag_Computer_Hop", link.b.displayName,
+                    (meters / 1000.0).ToString("N0", CultureInfo.CurrentCulture), DelayService.Format(meters / speed)));
+            }
         }
 
         private static string Status(QueuedCommand command, double now)

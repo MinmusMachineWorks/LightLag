@@ -11,7 +11,7 @@ namespace LightLag
     /// an instance method on a part module with simple arguments: the module, the method and its
     /// parameter types, and the arguments as text. Any other call (a window's own method, a
     /// setter on a mod's object) is held in memory and lost on a reload or scene change; the
-    /// queue window marks it.
+    /// flight computer marks it.
     /// </summary>
     public class MethodCommand : QueuedCommand
     {
