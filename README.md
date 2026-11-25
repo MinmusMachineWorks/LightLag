@@ -5,7 +5,7 @@ Light-speed signal delay and a command queue for KSP 1.12, built on CommNet. Com
 - **Stock CommNet:** works on its own. Stock's connection rules, "Require Signal for Control", plasma blackout and probe control points (crewed pods that can fly probes) all still apply.
 - **RealAntennas (recommended):** RealAntennas provides dishes, pointing and real signal strength. LightLag only adds the delay and the queue on top.
 
-**Status: milestone M0.** The plugin loads and its settings appear in the difficulty screen, but nothing is delayed yet. See [docs/DESIGN.md](docs/DESIGN.md) for the plan and [docs/COVERAGE.md](docs/COVERAGE.md) for which inputs are covered.
+**Status: milestone M1, not yet checked in game.** Steering, translation, throttle, wheel and trim input to an uncrewed vessel are delayed. Staging, action groups, SAS buttons and part menus aren't delayed yet; they arrive in M2 and M5. See [docs/DESIGN.md](docs/DESIGN.md) for the plan and [docs/COVERAGE.md](docs/COVERAGE.md) for which inputs are covered.
 
 ## Install
 
@@ -25,7 +25,19 @@ The settings are under **Difficulty → Advanced**, next to stock CommNet's:
 | Speed of light multiplier | 1.00 | Above 1 shortens every delay; below 1 lengthens it |
 | Throttle on signal loss | Cut | Cut or hold an uncrewed vessel's throttle when it loses its signal |
 
-None of them has an effect until M1.
+## What you see in flight
+
+A line under the stock time display shows the active vessel's state:
+- **Signal delay 2.31 s · 4 in flight:** the delay, and how many changes of input are still on their way.
+- **No signal: commands can't be sent:** new input isn't sent. Input already sent still arrives; then the stick centers, and the throttle is cut or held per the setting.
+- **Local control: no delay:** crew aboard, or an EVA kerbal.
+
+The stock throttle gauge shows the throttle you commanded; the vessel follows it after the delay.
+
+## Known limitations
+
+- Input still in flight is lost on a scene change or reload.
+- Discrete commands (staging, action groups, SAS and RCS, SAS modes, part menus) aren't delayed yet.
 
 ## Building
 

@@ -48,6 +48,12 @@ src/LightLag/                 LightLag.dll
   Bootstrap.cs                KSPAddon(Instantly): applies Harmony patches, each in its own try/catch
   Settings.cs                 LightLagParams: difficulty settings, in stock CommNet's section
   Log.cs                      [LightLag]-prefixed logging
+  Delay/DelayService.cs       delay from vessel.connection.ControlPath; Applies(), GetDelay(), Format()
+  Delay/LocalControl.cs       EVA or CommNet's Kerbal control flag: no delay
+  Vessel/LightLagVessel.cs    VesselModule on loaded vessels; keeps FlyByWireDelay first in OnPreAutopilotUpdate
+  Input/FlyByWireDelay.cs     queues the player's ctrlState and replays it after the delay
+  Rules/SignalLoss.cs         stick centered, throttle cut or held, once in-flight input has arrived
+  UI/DelayReadout.cs          IMGUI delay line in flight
 docs/DESIGN.md                design, decisions, gotchas, milestones
 docs/COVERAGE.md              input coverage matrix
 GameData/LightLag/            packaging root (Plugins/ and LightLag.version are build outputs, gitignored)

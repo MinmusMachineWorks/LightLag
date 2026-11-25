@@ -18,10 +18,10 @@ The background research is in `../COMMNET_RT_FEASIBILITY.md` and the repo plan i
 | Area | Class (planned) | Milestone |
 |---|---|---|
 | Settings | `LightLagParams` (done) | M0 |
-| Delay | `DelayService`: per-vessel delay from `ControlPath`, cached per physics frame; `LocalControl` | M1 |
-| Steering and throttle | `FlyByWireDelay`: queue `FlightCtrlState` with an arrival time, replay it after the delay | M1 |
-| Signal loss | `Rules/SignalLoss`: commands already sent still arrive; throttle cut or hold | M1 |
-| Readout | `UI/DelayReadout` | M1 |
+| Delay | `DelayService` (done): per-vessel delay from `ControlPath`, computed on each call (a few links, cheap); `LocalControl` (done) | M1 |
+| Steering and throttle | `FlyByWireDelay` (done): queue the player's `ctrlState` with an arrival time, replay it after the delay. Owned by `LightLagVessel` (done), a plain VesselModule on loaded vessels | M1 |
+| Signal loss | `SignalLoss` (done): input already sent still arrives; then the stick centers and the throttle is cut or held | M1 |
+| Readout | `DelayReadout` (done): IMGUI line under the stock time display | M1 |
 | Queue | `LightLagVessel` (VesselModule), `CommandQueue`, `QueuedCommand` and its subclasses | M2 |
 | Discrete hooks | Harmony prefixes on `StageManager.ActivateNextStage`, `ActionGroupList.ToggleGroup` and `VesselAutopilot.SetMode` | M2 |
 | Queue UI | `UI/QueueWindow`: countdowns, cancel, extra delay | M2 |
@@ -55,7 +55,9 @@ public static class LightLagAPI
 
 ## 5. Persistence (M2)
 
-The queue is saved in `LightLagVessel`'s ConfigNode. Each command records its send UT, arrival UT, type, label and payload.
+**Steering and throttle input in flight isn't saved:** what's still in `FlyByWireDelay`'s queue is lost on a scene change or reload. The vessel keeps the last input that had arrived.
+
+**Discrete commands (M2)** are saved in `LightLagVessel`'s ConfigNode. Each command records its send UT, arrival UT, type, label and payload.
 
 **Not decided yet:** what happens with commands for unloaded vessels. They could run on load, or be dropped with a message.
 
@@ -65,12 +67,22 @@ The queue is saved in `LightLagVessel`'s ConfigNode. Each command records its se
 |---|---|---|
 | 1 | Name | Decided: LightLag |
 | 2 | One-way or round-trip delay | Decided: one way by default, with round trip as a setting |
-| 3 | Do commands already sent still arrive after signal loss? | Proposed: yes |
+| 3 | Do commands already sent still arrive after signal loss? | Decided for steering and throttle (M1): yes. Discrete commands follow in M2 |
 | 4 | Which part-menu actions are exempt? | Open (a `skip_control`-style category plus a list) |
 | 5 | Control with no signal | Proposed: stock "Require Signal for Control"; no stricter rule of our own |
 | 6 | Commands for unloaded vessels | Open |
 
 ## 7. Gotchas
+
+- **Input order:**
+  - `FlightInputHandler` copies the player's input into the active vessel's `ctrlState` (`Vessel.SetControlState`). Then `Vessel.FeedInputFeed` calls `OnPreAutopilotUpdate`, `OnAutopilotUpdate` (stock SAS), `OnPostAutopilotUpdate` and `OnFlyByWire`, in that order.
+  - LightLag hooks **first in `OnPreAutopilotUpdate`**, so only the player's input is delayed, and SAS and autopilots (MechJeb drives on `OnFlyByWire`) act on board.
+  - RemoteTech hooks `OnFlyByWire` instead, and has to strip the stock autopilot's output back out.
+  - `LightLagVessel` re-checks each physics frame that its callback is still first.
+- **Non-active loaded vessels:** KSP zeroes their stick and translation every frame but leaves their throttle. `FlyByWireDelay` still runs on them, so input sent before a vessel switch keeps arriving.
+- **Throttle gauge:** the stock gauge shows `FlightInputHandler.state.mainThrottle`, the commanded throttle, not what has arrived. The vessel acts on `ctrlState`.
+- **Only changes are queued.** Consecutive equal states are skipped, so a long delay doesn't build a queue of identical frames.
+- **Arrival slack:** inputs due within half a physics frame are delivered this frame, so a near-zero delay (on the pad, at KSC) adds no lag.
 
 - **Settings section:** `LightLagParams` uses `Section = "Advanced"` and stock CommNet's `DisplaySection` (`#autoLoc_6002170`), with `SectionOrder = 2`, so it shows up right after the CommNet settings.
 - **RealAntennas and plasma:** RA overrides `CommNetwork.TryConnect` and never calls `GetSignalStrengthMultiplier`, so stock's plasma penalty doesn't reach RA links. A RealAntennas PR is planned. Until then, a vessel in plasma under RA keeps its link.
@@ -78,7 +90,7 @@ The queue is saved in `LightLagVessel`'s ConfigNode. Each command records its se
 ## 8. Milestones
 
 1. **M0:** skeleton, CI, settings, harness. Builds in CI; not loaded in game yet.
-2. **M1:** delay on stock CommNet:
+2. **M1:** delay on stock CommNet. **Code done; builds in CI; not checked in game yet.**
    - delay readout;
    - delayed steering and throttle;
    - signal-loss rules;
