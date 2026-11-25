@@ -31,6 +31,7 @@ namespace LightLag
         private readonly Queue<Pending> _queue = new Queue<Pending>();
         private FlightCtrlState _lastQueued;
         private FlightCtrlState _delivered;
+        private double _lastArrivalUT = double.NaN;
         private bool _wasDelayed;
 
         public FlyByWireDelay(Vessel vessel)
@@ -38,8 +39,11 @@ namespace LightLag
             _vessel = vessel;
         }
 
-        /// <summary>Inputs sent but not yet arrived.</summary>
+        /// <summary>Changes of input sent but not yet arrived.</summary>
         public int PendingCount => _queue.Count;
+
+        /// <summary>When the last change still in flight arrives, or NaN if none is.</summary>
+        public double LastArrivalUT => _queue.Count > 0 ? _lastArrivalUT : double.NaN;
 
         /// <summary>The callback for <c>vessel.OnPreAutopilotUpdate</c>.</summary>
         public void OnPreAutopilot(FlightCtrlState state)
@@ -60,8 +64,10 @@ namespace LightLag
 
             if (!_wasDelayed)
             {
-                // Start from what the vessel is doing now, so it doesn't jump when delay begins.
+                // Start from what the vessel is doing now, so it doesn't jump when delay begins,
+                // and count that as already sent, so only later changes are queued.
                 _delivered = Copy(state);
+                _lastQueued = Copy(state);
                 _wasDelayed = true;
                 Log.Info($"{_vessel.vesselName}: delay on, {DelayService.Format(delay)}");
             }
@@ -70,7 +76,8 @@ namespace LightLag
             if (connected && _vessel == FlightGlobals.ActiveVessel && !SameInput(state, _lastQueued))
             {
                 _lastQueued = Copy(state);
-                _queue.Enqueue(new Pending { ArrivalUT = now + delay, State = _lastQueued });
+                _lastArrivalUT = now + delay;
+                _queue.Enqueue(new Pending { ArrivalUT = _lastArrivalUT, State = _lastQueued });
             }
 
             // Half a physics frame of slack, so a near-zero delay doesn't add a frame of lag.
@@ -80,8 +87,10 @@ namespace LightLag
 
             if (!connected && _queue.Count == 0)
             {
-                _lastQueued = null;
                 SignalLoss.Apply(_delivered, LightLagParams.Current.throttleOnSignalLoss);
+                // When the signal returns, send the player's input only if it differs from what
+                // the vessel is doing now.
+                _lastQueued = Copy(_delivered);
             }
 
             state.CopyFrom(_delivered);

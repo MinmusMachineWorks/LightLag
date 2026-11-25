@@ -109,7 +109,7 @@ An unreadable entry is dropped with a warning in the log.
   - `LightLagVessel` re-checks each physics frame that its callback is still first.
 - **Non-active loaded vessels:** KSP zeroes their stick and translation every frame but leaves their throttle. `FlyByWireDelay` still runs on them, so input sent before a vessel switch keeps arriving.
 - **Throttle gauge:** the stock gauge shows `FlightInputHandler.state.mainThrottle`, the commanded throttle, not what has arrived. The vessel acts on `ctrlState`.
-- **Only changes are queued.** Consecutive equal states are skipped, so a long delay doesn't build a queue of identical frames.
+- **Only changes are queued.** Consecutive equal states are skipped, so a long delay doesn't build a queue of identical frames. When delay starts (after a load, a vessel switch, crew leaving), the current input counts as already sent; after a signal loss, it's compared with what the vessel is doing (stick centered, throttle per the setting). Otherwise unchanged input would show as in flight.
 - **Arrival slack:** inputs due within half a physics frame are delivered this frame, so a near-zero delay (on the pad, at KSC) adds no lag.
 
 - **Player context, not call sites:** KSP itself calls `SetGroup(SAS, false)` (`VesselAutopilot.Update`) and `SetMode(StabilityAssist)` (`VesselAutopilotUI.LateUpdate`), and MechJeb calls `StageManager.ActivateNextStage` directly. Delaying those would make on-board behavior lag, so `CommandHooks` intercept only inside the player entry points that `PlayerInput` brackets.

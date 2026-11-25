@@ -87,6 +87,7 @@ namespace LightLag.Tests
 
                 float savedMultiplier = (float)multiplier.GetValue(settings);
                 bool savedRoundTrip = (bool)roundTrip.GetValue(settings);
+                bool savedEnabled = (bool)enabled.GetValue(settings);
                 float savedThrottle = FlightInputHandler.state.mainThrottle;
                 try
                 {
@@ -103,16 +104,28 @@ namespace LightLag.Tests
                         yield break;
                     }
 
+                    // 2. When delay starts, unchanged input isn't counted as in flight.
+                    enabled.SetValue(settings, false);
+                    yield return new WaitForFixedUpdate();
+                    yield return new WaitForFixedUpdate();
+                    enabled.SetValue(settings, true);
+                    for (int i = 0; i < 3; i++) yield return new WaitForFixedUpdate();
+                    int? pending = PendingInputs(v);
+                    Result(pending == 0 ? "PASS" : "FAIL", "no phantom input when delay starts",
+                        pending.HasValue ? $"{pending} changes in flight 3 frames after delay restarted, with the controls untouched"
+                                         : "LightLagVessel.Input.PendingCount not found");
+
+                    // 3. A throttle change reaches ctrlState after the delay, not before.
                     yield return StartCoroutine(ThrottleTest(v, delay));
 
-                    // 3. A direct SetGroup call (KSP or another mod, not the player) acts at once.
+                    // 4. A direct SetGroup call (KSP or another mod, not the player) acts at once.
                     bool savedSas = v.ActionGroups[KSPActionGroup.SAS];
                     v.ActionGroups.SetGroup(KSPActionGroup.SAS, true);
                     bool instant = v.ActionGroups[KSPActionGroup.SAS];
                     Result(instant ? "PASS" : "FAIL", "non-player commands are instant",
                         instant ? "SetGroup(SAS, true) took effect in the same frame" : "SetGroup(SAS, true) didn't take effect at once");
 
-                    // 4 and 5. A SAS mode click on the navball arrives after the delay, and the queued command is saved.
+                    // 5 and 6. A SAS mode click on the navball arrives after the delay, and the queued command is saved.
                     if (instant)
                     {
                         yield return new WaitForFixedUpdate();
@@ -130,6 +143,7 @@ namespace LightLag.Tests
                     FlightInputHandler.state.mainThrottle = savedThrottle;
                     multiplier.SetValue(settings, savedMultiplier);
                     roundTrip.SetValue(settings, savedRoundTrip);
+                    enabled.SetValue(settings, savedEnabled);
                 }
             }
             finally
@@ -141,9 +155,17 @@ namespace LightLag.Tests
 
         private static readonly string[] TestNames =
         {
-            "delay matches the control path", "throttle arrives after the delay", "non-player commands are instant",
+            "delay matches the control path", "no phantom input when delay starts", "throttle arrives after the delay",
+            "non-player commands are instant",
             "SAS mode click arrives after the delay", "queued command is saved",
         };
+
+        private static int? PendingInputs(Vessel v)
+        {
+            VesselModule module = v.vesselModules.FirstOrDefault(m => m.GetType().FullName == "LightLag.LightLagVessel");
+            object input = module?.GetType().GetProperty("Input")?.GetValue(module);
+            return (int?)input?.GetType().GetProperty("PendingCount")?.GetValue(input);
+        }
 
         private IEnumerator ThrottleTest(Vessel v, double delay)
         {
@@ -152,7 +174,6 @@ namespace LightLag.Tests
                 Result("SKIP", "throttle arrives after the delay", "an engine is active; deactivate engines so the throttle test is safe");
                 yield break;
             }
-            // 2. A throttle change reaches ctrlState after the delay, not before.
             float target = FlightInputHandler.state.mainThrottle < 0.5f ? 0.75f : 0.25f;
             double sent = Planetarium.GetUniversalTime();
             FlightInputHandler.state.mainThrottle = target;
@@ -201,7 +222,7 @@ namespace LightLag.Tests
             double sent = Planetarium.GetUniversalTime();
             click.Invoke(ui, new object[] { (int)target });
 
-            // 5. While it's queued, the vessel module's save holds it.
+            // 6. While it's queued, the vessel module's save holds it.
             VesselModule module = v.vesselModules.FirstOrDefault(m => m.GetType().FullName == "LightLag.LightLagVessel");
             MethodInfo onSave = module?.GetType().GetMethod("OnSave", BindingFlags.Instance | BindingFlags.NonPublic);
             if (onSave == null)

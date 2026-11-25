@@ -28,7 +28,7 @@ The settings are under **Difficulty → Advanced**, next to stock CommNet's:
 ## What you see in flight
 
 A line under the stock time display shows the active vessel's state:
-- **Signal delay 2.31 s · 4 in flight · 2 queued:** the delay, how many changes of stick and throttle input are still on their way, and how many commands are queued.
+- **Signal delay 2.31 s · 4 in flight · 2 queued:** the delay, how many changes of stick and throttle input are still on their way, and how many commands are queued. The queue window shows both: when the last input change arrives (input can't be cancelled), and each command.
 - **No signal: commands can't be sent:** stock's "Require Signal for Control" is on, so new input isn't sent. Input already sent still arrives; then the stick centers, and the throttle is cut or held per the setting.
 - **No signal, none required: no delay:** "Require Signal for Control" is off, so stock lets you control the vessel without a signal, and there's no path to delay along. Input acts at once.
 - **Local control: no delay:** crew aboard, or an EVA kerbal.
