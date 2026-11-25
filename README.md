@@ -5,7 +5,7 @@ Light-speed signal delay and a command queue for KSP 1.12, built on CommNet. Com
 - **Stock CommNet:** works on its own. Stock's connection rules, "Require Signal for Control", plasma blackout and probe control points (crewed pods that can fly probes) all still apply.
 - **RealAntennas (recommended):** RealAntennas provides dishes, pointing and real signal strength. LightLag only adds the delay and the queue on top.
 
-**Status: milestone M2, not yet checked in game.** Steering, translation, throttle, wheel and trim input to an uncrewed vessel are delayed. Staging, action groups, SAS and RCS toggles and SAS modes go through a command queue you can inspect and cancel from. Part menus aren't delayed yet; they arrive in M5. See [docs/DESIGN.md](docs/DESIGN.md) for the plan and [docs/COVERAGE.md](docs/COVERAGE.md) for which inputs are covered.
+**Status: milestone M3, partly checked in game.** Steering, translation, throttle, wheel and trim input to an uncrewed vessel are delayed. Staging, action groups, SAS and RCS toggles, SAS modes and part-menu buttons and controls go through a command queue you can inspect and cancel from. See [docs/DESIGN.md](docs/DESIGN.md) for the plan and [docs/COVERAGE.md](docs/COVERAGE.md) for which inputs are covered.
 
 ## Install
 
@@ -37,7 +37,7 @@ The stock throttle gauge shows the throttle you commanded; the vessel follows it
 
 ## Command queue
 
-Staging, action groups (custom 1–10, abort, gear, lights, brakes), SAS and RCS toggles and SAS modes don't act at once on a vessel with delay. They're queued and run when the signal arrives. With no signal they aren't sent at all, unless "Require Signal for Control" is off; then they act at once. Without a signal, stock gives an uncrewed probe no control at all ("No Telemetry"), so with "Require Signal for Control" on, every key simply does nothing before LightLag sees it.
+Staging, action groups (custom 1–10, abort, gear, lights, brakes), SAS and RCS toggles, SAS modes and the active vessel's part menus (buttons such as Extend or Deploy, and toggles, sliders and other controls) don't act at once on a vessel with delay. They're queued and run when the signal arrives. With no signal they aren't sent at all, unless "Require Signal for Control" is off; then they act at once. Without a signal, stock gives an uncrewed probe no control at all ("No Telemetry"), so with "Require Signal for Control" on, every key simply does nothing before LightLag sees it.
 
 Click the readout to open the **command queue** window for the active vessel:
 - **Countdowns:** when each command arrives and when it runs.
@@ -48,10 +48,16 @@ On-rails time warp drops to 1× before a queued command runs; physics warp is le
 
 Only your own commands are delayed. KSP's (SAS switching itself off) and other mods' (MechJeb staging) run on board without delay.
 
+**Part menus:**
+- **Instant:** buttons that don't command the vessel. These are renaming, crew transfer and the camera (the same list as RemoteTech's), plus mod buttons that only open a window. They're listed in `GameData/LightLag/Exemptions.cfg`, which other mods can extend with a Module Manager patch (see the file). A mod can also mark an event or field with RemoteTech's `skip_delay` (needs a signal, no delay) or `skip_control` (no checks) category.
+- **Other vessels' parts** (an EVA kerbal working on a part, setting a target) aren't delayed.
+- **Symmetry:** clicking a button on a part with symmetry queues one command for all its counterparts.
+- **Sliders:** a drag is sent as one change, and the slider shows the value on its way. Toggles and other controls show the part's actual state until the command arrives.
+
 ## Known limitations
 
 - Stick and throttle input still in flight is lost on a scene change or reload. Queued commands are kept.
-- Part-menu buttons and toggles aren't delayed yet.
+- Buttons inside mod windows (KAS winch, Konstruction, MKS Orbital Logistics, RealAntennas targeting) aren't delayed: only the part menu is covered.
 - Staging works only on the active vessel, so a staging command that arrives after you switch vessels fails.
 - The queue window doesn't block clicks to the scene behind it.
 

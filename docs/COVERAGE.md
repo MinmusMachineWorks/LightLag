@@ -16,12 +16,16 @@ Status: ✅ delayed, checked in game · 🧪 delayed in code, not yet checked in
 | SAS and RCS toggles (T, R, F held) | `ActionGroupList.ToggleGroup` / `SetGroup` (SAS and RCS groups), from `FlightInputHandler.Update` | `CommandHooks` prefix → `ActionGroupCommand` | M2 | 🧪 |
 | SAS, RCS, gear, lights and brakes buttons (top-left UI) | `ActionGroupList.SetGroup`, from `ActionGroupToggleButton.SetToggle` | `CommandHooks` prefix → `ActionGroupCommand` | M2 | 🧪 |
 | SAS mode buttons on the navball | `VesselAutopilot.SetMode`, from `VesselAutopilotUI.OnClickButton` | `CommandHooks` prefix → `SasModeCommand` | M2 | ✅ (harness test, 2026-11-25) |
-| Part-menu buttons | `BaseEvent.Invoke` | Harmony prefix | M5 | ⬜ |
-| Part-menu toggles, sliders and cycles | `BaseField` setters reached from part menus | Harmony | M5 | ⬜ |
-| MechJeb autopilots | MechJebRTBridge seams | Bridge backend for `LightLagAPI` | M3 | ⬜ |
+| Part-menu buttons on the active vessel (stock and mods) | `BaseEvent.Invoke`, from `UIPartActionButton.OnClick` | `PartMenuHooks` prefix → `PartEventCommand`; symmetry counterparts in one command | M3 | 🧪 (harness test) |
+| Part-menu controls on the active vessel: toggle, slider, cycle, option list, number field | `UIPartActionFieldItem.SetFieldValue` | `PartMenuHooks` prefix → `PartFieldCommand`; a slider drag merged into one | M3 | 🧪 |
+| Part-menu buttons and controls listed in `Exemptions.cfg`, or marked `skip_control` | Same | ➖ Don't command the vessel: renaming, crew transfer, camera, mod "open window" buttons | — | ➖ |
+| Part-menu buttons and controls marked `skip_delay` | Same | ➖ Need a signal, no delay (RemoteTech's marker) | — | ➖ |
+| Part menus of other vessels' parts (EVA reach, setting a target) | Same | ➖ Not a command to the active vessel | — | ➖ |
+| Commands sent from mod windows (KAS winch, Konstruction, MKS Orbital Logistics, EL, RealAntennas targeting) | The mods' own windows | Not hooked; opening the window is exempt | later | ⬜ |
+| MechJeb autopilots | MechJebRTBridge seams | Bridge backend for `LightLagAPI` | M4 | ⬜ |
 | kOS | kOS connectivity manager | Needs kOS-side support | later | ⬜ |
 | Dish targeting (RealAntennas) | RA targeting window | Not decided | later | ⬜ |
-| Staging, action groups and SAS modes called by KSP or other mods (SAS falling back to stability assist, SAS switching off, missions, MechJeb staging) | Same methods, outside the player entry points | ➖ `CommandHooks` act only inside `PlayerInput`'s entry points: these calls run on board. MechJeb's commands are the bridge's job (M3) | — | ➖ (harness test passes, 2026-11-25) |
+| Staging, action groups and SAS modes called by KSP or other mods (SAS falling back to stability assist, SAS switching off, missions, MechJeb staging) | Same methods, outside the player entry points | ➖ `CommandHooks` act only inside `PlayerInput`'s entry points: these calls run on board. MechJeb's commands are the bridge's job (M4) | — | ➖ (harness test passes, 2026-11-25) |
 | Stock SAS corrections | `OnAutopilotUpdate` | ➖ Runs after `FlyByWireDelay`, on board: SAS acts on the delayed input without its own delay | — | ➖ |
 | Autopilots on `OnFlyByWire` (MechJeb's attitude control and others) | `OnFlyByWire` | ➖ Run after `FlyByWireDelay`, on board. Their *commands* are the bridge's job | — | ➖ |
 | Science transmission | Stock / RA transmitters | ➖ Data flows *from* the vessel, so no command delay applies | — | ➖ |

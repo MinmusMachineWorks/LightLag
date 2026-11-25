@@ -137,6 +137,9 @@ namespace LightLag.Tests
                         Result("SKIP", "queued command is saved", "SAS couldn't be turned on");
                     }
                     v.ActionGroups.SetGroup(KSPActionGroup.SAS, savedSas);
+
+                    // 7. A part-menu button (Extend) arrives after the delay.
+                    yield return StartCoroutine(PartEventTest(v, mod, delay));
                 }
                 finally
                 {
@@ -157,8 +160,54 @@ namespace LightLag.Tests
         {
             "delay matches the control path", "no phantom input when delay starts", "throttle arrives after the delay",
             "non-player commands are instant",
-            "SAS mode click arrives after the delay", "queued command is saved",
+            "SAS mode click arrives after the delay", "queued command is saved", "part-menu button arrives after the delay",
         };
+
+        private IEnumerator PartEventTest(Vessel v, Assembly mod, double delay)
+        {
+            const string name = "part-menu button arrives after the delay";
+            ModuleDeployablePart deployable = v.parts.SelectMany(p => p.FindModulesImplementing<ModuleDeployablePart>())
+                .FirstOrDefault(d => d.deployState == ModuleDeployablePart.DeployState.RETRACTED && d.Events["Extend"] != null && d.Events["Extend"].active);
+            Type playerInput = mod.GetType("LightLag.PlayerInput");
+            if (deployable == null || playerInput == null)
+            {
+                Result("SKIP", name, deployable == null ? "no retracted solar panel or antenna with Extend" : "LightLag.PlayerInput not found");
+                yield break;
+            }
+
+            // Send Extend the way a part-menu click does: inside player context.
+            BaseEvent extend = deployable.Events["Extend"];
+            double sent = Planetarium.GetUniversalTime();
+            playerInput.GetMethod("Enter").Invoke(null, null);
+            try { extend.Invoke(); }
+            finally { playerInput.GetMethod("Exit").Invoke(null, new object[] { null }); }
+
+            double? arrived = null, early = null;
+            while (Planetarium.GetUniversalTime() - sent < delay + 5.0)
+            {
+                yield return new WaitForFixedUpdate();
+                double t = Planetarium.GetUniversalTime() - sent;
+                if (deployable.deployState != ModuleDeployablePart.DeployState.RETRACTED)
+                {
+                    if (t < delay - 3 * Time.fixedDeltaTime) early = t;
+                    arrived = t;
+                    break;
+                }
+            }
+            double slack = 3 * Time.fixedDeltaTime;
+            bool pass = arrived.HasValue && !early.HasValue && Math.Abs(arrived.Value - delay) <= slack;
+            Result(pass ? "PASS" : "FAIL", name,
+                arrived.HasValue ? $"{deployable.part.partInfo.title} Extend: delay {delay:0.000} s, arrived after {arrived.Value:0.000} s (slack {slack:0.000} s)"
+                                 : $"{deployable.part.partInfo.title} Extend: delay {delay:0.000} s, not arrived after {delay + 5.0:0.0} s");
+
+            // Put it back, outside player context, so it acts at once.
+            if (arrived.HasValue)
+            {
+                while (deployable.deployState == ModuleDeployablePart.DeployState.EXTENDING) yield return new WaitForFixedUpdate();
+                BaseEvent retract = deployable.Events["Retract"];
+                if (deployable.retractable && retract != null && retract.active) retract.Invoke();
+            }
+        }
 
         private static int? PendingInputs(Vessel v)
         {

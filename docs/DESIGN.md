@@ -27,9 +27,9 @@ The background research is in `../COMMNET_RT_FEASIBILITY.md` and the repo plan i
 | Queue | `CommandQueue` (done) and `QueuedCommand` with `StageCommand`, `ActionGroupCommand` and `SasModeCommand` (done), held and run by `LightLagVessel` | M2 |
 | Queue UI | `QueueWindow` (done): opened by clicking the readout; countdowns, cancel, extra delay | M2 |
 | Time warp | `WarpGuard` (done): drops on-rails warp to 1× before a queued command runs | M2 |
-| API | `LightLagAPI` | M3 |
-| RealAntennas adapter | `LightLag.RealAntennas.dll` with `[KSPAssemblyDependency("RealAntennas")]`; strength rules from `RACommLink` data rates | M4 |
-| Part menus | `BaseEvent.Invoke`, part-menu fields | M5 |
+| Part menus | `PartMenuHooks` (done): `BaseEvent.Invoke` inside `UIPartActionButton.OnClick`, and `UIPartActionFieldItem.SetFieldValue`, → `PartEventCommand` and `PartFieldCommand`; `Exemptions` reads `LIGHTLAG_EXEMPTIONS` nodes and RemoteTech's `skip_delay`/`skip_control` categories | M3 |
+| API | `LightLagAPI` | M4 |
+| RealAntennas adapter | `LightLag.RealAntennas.dll` with `[KSPAssemblyDependency("RealAntennas")]`; strength rules from `RACommLink` data rates | M5 |
 
 ## 3. Delay math
 
@@ -38,7 +38,7 @@ The background research is in `../COMMNET_RT_FEASIBILITY.md` and the repo plan i
 - **No connection:** with stock's "Require Signal for Control" on, the delay is infinite and nothing new can be sent. With it off, no delay applies.
 - **Local control:** the delay is 0.
 
-## 4. Public API (M3; sketch)
+## 4. Public API (M4; sketch)
 
 It mirrors the parts of `RemoteTech.API` that MechJebRTBridge uses, so the bridge's LightLag backend stays small:
 
@@ -84,6 +84,8 @@ LightLagVessel
 
 An unreadable entry is dropped with a warning in the log.
 
+Part commands save their target as the part's `persistentId` plus the module's index and class name (`TARGET` nodes for buttons, inline for fields), the event or field name, and for fields the value as text (`value`), parsed against the field's type when it runs, plus `symmetry`.
+
 **Not saved:** steering and throttle input in flight. What's still in `FlyByWireDelay`'s queue is lost on a scene change or reload; the vessel keeps the last input that had arrived.
 
 **Unloaded vessels:** the queue stays in the save. Commands that came due while the vessel was unloaded run in order once it's loaded and off rails, with a message. Staging among them fails unless the vessel is the active one.
@@ -95,10 +97,10 @@ An unreadable entry is dropped with a warning in the log.
 | 1 | Name | Decided: LightLag |
 | 2 | One-way or round-trip delay | Decided: one way by default, with round trip as a setting |
 | 3 | Do commands already sent still arrive after signal loss? | Decided: yes, for steering and throttle (M1) and for discrete commands (M2) |
-| 4 | Which part-menu actions are exempt? | Open (a `skip_control`-style category plus a list) |
+| 4 | Which part-menu actions are exempt? | Decided (M3): RemoteTech's rules. Every button and control on the active vessel's part menus is delayed, except renaming, crew transfer and the camera (RemoteTech's list), mod buttons that only open a window (`Exemptions.cfg`, extendable with Module Manager), and events or fields marked `skip_delay` or `skip_control`. Like RemoteTech, Control From Here, Review Data and Open KerbNet are delayed. Unlike RemoteTech, every kind of control is delayed, not just toggles, sliders and cycles |
 | 5 | Control with no signal | Decided: follow stock's "Require Signal for Control". **On:** nothing new is sent; input and commands already sent still arrive, then the stick centers and the throttle is cut or held. Stock already gives an uncrewed probe no control without a signal, so this matches it. **Off:** delay doesn't apply, so what stock's partial control allows (staging, action groups, SAS, RCS) acts at once; input still in flight is dropped, and queued commands still run when due |
 | 6 | Commands for unloaded vessels | Decided (M2): kept in the save; overdue ones run in order on load, with a message |
-| 7 | Which calls count as the player's? | Decided (M2): only those made inside `FlightInputHandler.Update`, `ActionGroupToggleButton.SetToggle` and `VesselAutopilotUI.OnClickButton`. KSP's and other mods' calls stay instant |
+| 7 | Which calls count as the player's? | Decided (M2): only those made inside `FlightInputHandler.Update`, `ActionGroupToggleButton.SetToggle`, `VesselAutopilotUI.OnClickButton` and (M3) `UIPartActionButton.OnClick`, plus part-menu controls' `SetFieldValue`. KSP's and other mods' calls stay instant |
 | 8 | How is stick and throttle input in flight shown? | Decided: as one indicator, not a list or a count. Holding a key sends a stream of small changes, so a count means nothing; the readout says "input arriving" and the queue window says how long until the last of it lands. Only discrete commands are listed, and only they can be cancelled |
 
 ## 7. Gotchas
@@ -116,6 +118,8 @@ An unreadable entry is dropped with a warning in the log.
 - **Stock's no-signal locks come first.** `ModuleCommand.UpdateControlSourceState` decides an uncrewed probe's control without a signal, and `Vessel` sets the matching `vessel_noControl_<id>` input lock. `FlightInputHandler` and the UI check it before calling `ToggleGroup` or staging, so locked keys never reach `CommandHooks`:
   - **"Require Signal for Control" on:** "No Telemetry", control level `NONE`, lock `ALL_SHIP_CONTROLS`. Every key is stopped by stock, so `CommandHooks`' "not sent" message is only a safety net.
   - **Off:** partial control, lock `PARTIAL_SHIP_CONTROLS` (pitch, roll, yaw, throttle, translation, wheel). `Vessel.PartialControlHasSASRCS` is true by default, so SAS and RCS stay usable; with it false, the lock is `PARTIAL_SHIP_CONTROLS_SASRCS`, which also locks them. Staging and action groups are never locked here, and LightLag lets them act at once.
+- **Part-menu buttons:** `UIPartActionButton.OnClick` sends the event to symmetry counterparts with `part.Events.Send(id)` and then calls `evt.Invoke()`; both end in `BaseEvent.Invoke`, and `BaseEventList.Send` uses the overload with `BaseEventDetails`, so both overloads are hooked. KSP names a `BaseEvent` after its method, not the `KSPEvent` attribute's `name`, so exemptions list method names. An event that runs at once runs outside player context, so the events it calls aren't queued instead.
+- **Part-menu controls:** every control sets its value through `UIPartActionFieldItem.SetFieldValue`, which applies symmetry (only when `affectSymCounterparts` includes the scene) and calls `onFieldChanged`; `PartFieldCommand` does the same when it runs. `UIPartActionFloatEdit.Setup` also calls it, to clamp a value as the menu opens, so that call is excluded. Each frame `UpdateItem` redraws a control from the field's value, so a held-back slider would snap back under the mouse; the `UIPartActionFloatRange.UpdateItem` postfix shows the value on its way instead.
 - **Player context, not call sites:** KSP itself calls `SetGroup(SAS, false)` (`VesselAutopilot.Update`) and `SetMode(StabilityAssist)` (`VesselAutopilotUI.LateUpdate`), and MechJeb calls `StageManager.ActivateNextStage` directly. Delaying those would make on-board behavior lag, so `CommandHooks` intercept only inside the player entry points that `PlayerInput` brackets.
 - **The stage key does two things:** `FlightInputHandler.Update` calls `StageManager.ActivateNextStage()` and then `ToggleGroup(Stage)`. When the staging is queued, the toggle in the same frame is folded into the `StageCommand`.
 - **Staging acts on the active vessel only:** `ActivateNextStage` is static. A `StageCommand` that comes due after the player switched vessels fails with a message.
@@ -139,6 +143,8 @@ An unreadable entry is dropped with a warning in the log.
    - queue window with cancel and extra delay;
    - the queue is saved;
    - time warp drops before an arrival.
-4. **M3:** `LightLagAPI` and a LightLag backend in MechJebRTBridge.
-5. **M4:** RealAntennas checked in game, plus the adapter DLL and strength rules.
-6. **M5:** part menus, then whatever `COVERAGE.md` shows missing.
+4. **M3:** part menus, moved ahead so a near-stock game is fully covered. **Code done; not checked in game yet.**
+   - part-menu buttons and controls on the active vessel through the queue;
+   - RemoteTech's exemption rules, `Exemptions.cfg` for the mod set, and the `skip_delay`/`skip_control` markers.
+5. **M4:** `LightLagAPI` and a LightLag backend in MechJebRTBridge.
+6. **M5:** RealAntennas checked in game, plus the adapter DLL and strength rules. Then whatever `COVERAGE.md` shows missing.

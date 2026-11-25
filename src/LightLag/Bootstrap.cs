@@ -14,6 +14,9 @@ namespace LightLag
     /// <c>FlightInputHandler.Update</c>, <c>ActionGroupToggleButton.SetToggle</c>, <c>VesselAutopilotUI.OnClickButton</c>.</item>
     /// <item>Command prefixes in <see cref="CommandHooks"/>: <c>StageManager.ActivateNextStage</c>,
     /// <c>ActionGroupList.ToggleGroup</c> and <c>SetGroup</c>, <c>VesselAutopilot.SetMode</c>.</item>
+    /// <item>Part menus, in <see cref="PartMenuHooks"/>: <c>UIPartActionButton.OnClick</c> (player
+    /// entry point), <c>BaseEvent.Invoke</c> (both overloads), <c>UIPartActionFieldItem.SetFieldValue</c>,
+    /// <c>UIPartActionFloatEdit.Setup</c> (suppressed), <c>UIPartActionFloatRange.UpdateItem</c> (postfix).</item>
     /// </list>
     /// </summary>
     [KSPAddon(KSPAddon.Startup.Instantly, once: true)]
@@ -34,6 +37,10 @@ namespace LightLag
             Count(Patch(harmony, "FlightInputHandler:Update", prefix: enter, finalizer: exit));
             Count(Patch(harmony, "KSP.UI.Screens.Flight.ActionGroupToggleButton:SetToggle", prefix: enter, finalizer: exit));
             Count(Patch(harmony, "VesselAutopilotUI:OnClickButton", prefix: enter, finalizer: exit));
+            Count(Patch(harmony, "UIPartActionButton:OnClick", prefix: enter, finalizer: exit));
+            Count(Patch(harmony, "UIPartActionFloatEdit:Setup",
+                prefix: new HarmonyMethod(typeof(PlayerInput), nameof(PlayerInput.Suppress)),
+                finalizer: new HarmonyMethod(typeof(PlayerInput), nameof(PlayerInput.Unsuppress))));
 
             Count(Patch(harmony, "KSP.UI.Screens.StageManager:ActivateNextStage",
                 prefix: new HarmonyMethod(typeof(CommandHooks), nameof(CommandHooks.ActivateNextStagePrefix))));
@@ -44,6 +51,15 @@ namespace LightLag
             Count(Patch(harmony, "VesselAutopilot:SetMode",
                 prefix: new HarmonyMethod(typeof(CommandHooks), nameof(CommandHooks.SetModePrefix))));
 
+            Count(Patch(harmony, "BaseEvent:Invoke", parameters: Type.EmptyTypes,
+                prefix: new HarmonyMethod(typeof(PartMenuHooks), nameof(PartMenuHooks.InvokePrefix))));
+            Count(Patch(harmony, "BaseEvent:Invoke", parameters: new[] { typeof(BaseEventDetails) },
+                prefix: new HarmonyMethod(typeof(PartMenuHooks), nameof(PartMenuHooks.InvokeDataPrefix))));
+            Count(Patch(harmony, "UIPartActionFieldItem:SetFieldValue", parameters: new[] { typeof(object) },
+                prefix: new HarmonyMethod(typeof(PartMenuHooks), nameof(PartMenuHooks.SetFieldValuePrefix))));
+            Count(Patch(harmony, "UIPartActionFloatRange:UpdateItem",
+                postfix: new HarmonyMethod(typeof(PartMenuHooks), nameof(PartMenuHooks.FloatRangeUpdatePostfix))));
+
             Log.Info($"applied {ok} of {total} patches");
         }
 
@@ -53,18 +69,18 @@ namespace LightLag
 
         /// <summary>Patches <paramref name="target"/> ("Namespace.Type:Method"); logs and returns false on failure.</summary>
         internal static bool Patch(Harmony harmony, string target, HarmonyMethod prefix = null, HarmonyMethod postfix = null,
-            HarmonyMethod finalizer = null)
+            HarmonyMethod finalizer = null, Type[] parameters = null)
         {
             try
             {
-                MethodInfo original = AccessTools.Method(target);
+                MethodInfo original = AccessTools.Method(target, parameters);
                 if (original == null)
                 {
                     Log.Error($"patch target not found: {target}");
                     return false;
                 }
                 harmony.Patch(original, prefix, postfix, finalizer: finalizer);
-                Log.Info($"patched {target}");
+                Log.Info($"patched {target}" + (parameters != null ? $"({string.Join(", ", Array.ConvertAll(parameters, p => p.Name))})" : ""));
                 return true;
             }
             catch (Exception e)

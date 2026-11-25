@@ -19,7 +19,7 @@ namespace LightLag
     /// <item>otherwise the command goes into the vessel's queue and the original call is skipped.</item>
     /// </list>
     /// Calls from KSP itself and from other mods are deliberately left undelayed: they run on
-    /// board (SAS turning itself off, MechJeb staging) and the bridge covers MechJeb's commands (M3).
+    /// board (SAS turning itself off, MechJeb staging) and the bridge covers MechJeb's commands (M4).
     /// </summary>
     internal static class CommandHooks
     {
@@ -74,7 +74,7 @@ namespace LightLag
         /// Queues <paramref name="command"/> for <paramref name="vessel"/>, or blocks it without a
         /// signal. Returns false when the original call should run now.
         /// </summary>
-        private static bool TryQueue(Vessel vessel, QueuedCommand command)
+        internal static bool TryQueue(Vessel vessel, QueuedCommand command)
         {
             if (vessel == null || !DelayService.Applies(vessel)) return false;
             LightLagVessel module = LightLagVessel.For(vessel);

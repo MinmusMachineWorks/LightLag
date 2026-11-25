@@ -28,6 +28,23 @@ namespace LightLag
             Last = command;
         }
 
+        /// <summary>Removes a command that hasn't run, so it can be re-added with a new time.</summary>
+        public bool Remove(QueuedCommand command)
+        {
+            if (!_commands.Remove(command)) return false;
+            if (command == Last) Last = null;
+            return true;
+        }
+
+        /// <summary>The newest field change still queued for this field of <paramref name="host"/>, or null.</summary>
+        public PartFieldCommand PendingField(object host, string fieldName)
+        {
+            for (int i = _commands.Count - 1; i >= 0; i--)
+                if (_commands[i] is PartFieldCommand f && f.Host != null && ReferenceEquals(f.Host, host) && f.FieldName == fieldName)
+                    return f;
+            return null;
+        }
+
         public void Clear()
         {
             _commands.Clear();

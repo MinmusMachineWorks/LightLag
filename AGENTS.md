@@ -28,6 +28,7 @@ Read these before changing anything:
 |---|---|
 | Add, remove, or change a Harmony patch or input hook | `docs/COVERAGE.md` (row status and entry point) and the header comment of the hook's class |
 | Deliberately leave an input path undelayed | Say why in a comment at the hook **and** in `docs/COVERAGE.md` |
+| Exempt a part-menu event or field (a new mod in the set, a UI-only button) | `GameData/LightLag/Exemptions.cfg`, with a comment saying what it opens or why it isn't a command |
 | Add or change a setting | `Settings.cs`, `Localization/en-us.cfg`, and the README settings table |
 | Change what's saved in the queue | `docs/DESIGN.md` persistence notes |
 | Resolve an open question | `docs/DESIGN.md` (mark it decided and say what was chosen) |
@@ -54,8 +55,11 @@ src/LightLag/                 LightLag.dll
   Input/FlyByWireDelay.cs     queues the player's ctrlState and replays it after the delay
   Input/PlayerInput.cs        player context: set around the player's entry points by Harmony
   Input/Hooks/CommandHooks.cs prefixes on staging, action groups and SAS modes; queue in player context
+  Input/Hooks/PartMenuHooks.cs part-menu buttons and controls on the active vessel → part commands
+  Input/Exemptions.cs         part-menu exemptions: LIGHTLAG_EXEMPTIONS nodes, skip_delay/skip_control
   Queue/QueuedCommand.cs      a discrete command: sent, arrival and execute UTs, cancel, save/load
-  Queue/Commands/*.cs         StageCommand, ActionGroupCommand, SasModeCommand
+  Queue/Commands/*.cs         StageCommand, ActionGroupCommand, SasModeCommand, PartEventCommand, PartFieldCommand
+  Queue/PartRef.cs            a saved part and module reference (persistentId, module index and class)
   Queue/CommandQueue.cs       a vessel's commands in run order; runs due ones, handles cancels
   Rules/SignalLoss.cs         stick centered, throttle cut or held, once in-flight input has arrived
   Rules/WarpGuard.cs          drops time warp before a queued command runs
@@ -65,6 +69,7 @@ src/LightLag/                 LightLag.dll
 docs/DESIGN.md                design, decisions, gotchas, milestones
 docs/COVERAGE.md              input coverage matrix
 GameData/LightLag/            packaging root (Plugins/ and LightLag.version are build outputs, gitignored)
+  Exemptions.cfg              part-menu events and fields that aren't delayed (stock and the mod set)
 tests/LightLag.Tests/         dev-only in-game test harness (separate plugin, never shipped)
 ckan/metadata.json            CKAN metadata template for the shared release workflow
 tools/dev_ckan.py             writes ckan/LightLag-dev.ckan, a metapackage of those relations for dev installs

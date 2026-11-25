@@ -30,6 +30,9 @@ namespace LightLag
         protected virtual void SavePayload(ConfigNode node) { }
         protected virtual void LoadPayload(ConfigNode node) { }
 
+        /// <summary>False when a loaded command lacks what it needs to run.</summary>
+        internal virtual bool IsValid => true;
+
         public void Save(ConfigNode node)
         {
             node.AddValue("type", TypeName);
@@ -49,6 +52,8 @@ namespace LightLag
                 case StageCommand.Name: command = new StageCommand(); break;
                 case ActionGroupCommand.Name: command = new ActionGroupCommand(); break;
                 case SasModeCommand.Name: command = new SasModeCommand(); break;
+                case PartEventCommand.Name: command = new PartEventCommand(); break;
+                case PartFieldCommand.Name: command = new PartFieldCommand(); break;
                 default: return null;
             }
             if (!TryRead(node, "sent", out command.SentUT) || !TryRead(node, "arrival", out command.ArrivalUT)
@@ -56,7 +61,7 @@ namespace LightLag
                 return null;
             if (TryRead(node, "cancelArrival", out double cancel)) command.CancelArrivalUT = cancel;
             command.LoadPayload(node);
-            return command;
+            return command.IsValid ? command : null;
         }
 
         private static bool TryRead(ConfigNode node, string key, out double value)
