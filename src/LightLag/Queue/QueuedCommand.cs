@@ -33,6 +33,9 @@ namespace LightLag
         /// <summary>False when a loaded command lacks what it needs to run.</summary>
         internal virtual bool IsValid => true;
 
+        /// <summary>False for a command that can't be written to the save; it's lost on a reload.</summary>
+        internal virtual bool Saveable => true;
+
         public void Save(ConfigNode node)
         {
             node.AddValue("type", TypeName);
@@ -55,6 +58,7 @@ namespace LightLag
                 case PartEventCommand.Name: command = new PartEventCommand(); break;
                 case PartFieldCommand.Name: command = new PartFieldCommand(); break;
                 case ScienceCommand.Name: command = new ScienceCommand(); break;
+                case MethodCommand.Name: command = new MethodCommand(); break;
                 default: return null;
             }
             if (!TryRead(node, "sent", out command.SentUT) || !TryRead(node, "arrival", out command.ArrivalUT)

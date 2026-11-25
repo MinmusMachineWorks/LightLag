@@ -1,6 +1,6 @@
 # Part menus: what's delayed
 
-Every button (`KSPEvent`) and control (`KSPField` with a flight UI control) in the active vessel's part menus is delayed, except the ones below. This is LightLag's own analysis of stock KSP 1.12.5 and the mod set, done on 2026-11-25. `GameData/LightLag/Exemptions/` implements it, with `Stock.cfg` and one file per mod; keep the two in sync (AGENTS.md, Rule #1).
+Every button (`KSPEvent`) and control (`KSPField` with a flight UI control) in the active vessel's part menus is delayed, except the ones below. This is LightLag's own analysis of stock KSP 1.12.5 and the mod set, done on 2026-11-25. `GameData/LightLag/Rules/` implements it, with `Stock.cfg` and one file per mod; keep the two in sync (AGENTS.md, Rule #1).
 
 ## The test
 
@@ -29,8 +29,24 @@ Everything not listed above, including:
 
 ## Not covered (instant whatever the table says)
 
-- **Buttons inside other windows** opened from a part menu: the robotics controller and the mod windows above. Buttons in them that command the vessel should be delayed, and will be, one window at a time (COVERAGE.md). The science results dialog is covered: Transmit, Discard, Reset and Process in lab are delayed, and Keep is instant. KerbNet only shows things, so it stays instant.
-- **Resource flow and priority toggles** in a part menu. They don't use `SetFieldValue`.
+- **Resource transfers:** part-menu resource flow and priority toggles (they don't use `SetFieldValue`), and KAS's fuel transfer window.
+- **Robotics sequence editing:** keyframes, length and presets in the robotics controller.
+
+## Windows
+
+Opening a window is instant; the buttons inside it that command the vessel are delayed, by the same test. Each mod's `Rules/<Mod>.cfg` lists them in a `LIGHTLAG_WINDOW` node (`Stock.cfg` explains the format).
+
+| Window | Delayed | Instant |
+|---|---|---|
+| Science results (Review Data) | Transmit, Discard, Reset, Process in lab (`ScienceHooks`, not a `LIGHTLAG_WINDOW`) | Keep, paging |
+| Robotics controller (stock) | Play/pause, reverse, loop mode, skip buttons, position and speed sliders | Sequence editing, renaming |
+| KerbNet (stock) | — | Everything: it only shows things |
+| KAS winch remote | Motor (start, hold, stop), release, stretch, detach | Highlighting |
+| Konstruction | Build vessel (Konstructor), Dekonstruct parts, KonFabricate | Choosing what to build |
+| MKS Orbital Logistics | Start, abort, resume transfer (to the origin vessel) | Planning a transfer, clearing finished ones |
+| Extraplanetary Launchpads | Build, pause, resume, cancel, restart, finish, release | Choosing a craft, renaming |
+| RealAntennas targeting | Picking a target | Target mode and sorting |
+| KAS fuel transfer | — (not covered yet) | |
 
 ## Differences from RemoteTech
 
@@ -38,4 +54,4 @@ RemoteTech's list of instant buttons is only renaming, crew transfer and the cam
 
 ## Adding a mod
 
-When a mod joins the set, list its flight part-menu buttons and fields and apply the test. For a quick list, search its source for `KSPEvent` with `guiActive = true`. Put the instant ones in a new `Exemptions/<Mod>.cfg`, and add them to the table above.
+When a mod joins the set, list its flight part-menu buttons and fields and apply the test. For a quick list, search its source for `KSPEvent` with `guiActive = true`. Put the instant ones in a new `Rules/<Mod>.cfg`, and add them to the table above. Then look at the windows its buttons open: find the methods their commanding buttons call, and list them with the window's draw or click methods in a `LIGHTLAG_WINDOW` node in the same file.

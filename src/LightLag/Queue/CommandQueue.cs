@@ -92,7 +92,8 @@ namespace LightLag
 
         public void Save(ConfigNode node)
         {
-            foreach (QueuedCommand command in _commands) command.Save(node.AddNode("COMMAND"));
+            foreach (QueuedCommand command in _commands)
+                if (command.Saveable) command.Save(node.AddNode("COMMAND"));
         }
 
         public void Load(ConfigNode node, string vesselName)

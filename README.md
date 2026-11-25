@@ -49,17 +49,19 @@ On-rails time warp drops to 1× before a queued command runs; physics warp is le
 Only your own commands are delayed. KSP's (SAS switching itself off) and other mods' (MechJeb staging) run on board without delay.
 
 **Part menus:**
-- **Instant:** buttons and controls that don't command the vessel: Control From Here and the camera, Review Data, KerbNet and other windows, renaming and targets, plus mod buttons that only open a window. [docs/PART_MENUS.md](docs/PART_MENUS.md) has the full analysis; the list is in `GameData/LightLag/Exemptions/`, with `Stock.cfg` and one file per mod in the set. Another mod can add its own `LIGHTLAG_EXEMPTIONS` node in any `.cfg` (see `Stock.cfg`). A mod can also mark an event or field with RemoteTech's `skip_delay` (needs a signal, no delay) or `skip_control` (no checks) category.
+- **Instant:** buttons and controls that don't command the vessel: Control From Here and the camera, Review Data, KerbNet and other windows, renaming and targets, plus mod buttons that only open a window. [docs/PART_MENUS.md](docs/PART_MENUS.md) has the full analysis; the list is in `GameData/LightLag/Rules/`, with `Stock.cfg` and one file per mod in the set. Another mod can add its own `LIGHTLAG_EXEMPTIONS` node in any `.cfg` (see `Stock.cfg`). A mod can also mark an event or field with RemoteTech's `skip_delay` (needs a signal, no delay) or `skip_control` (no checks) category.
 - **Other vessels' parts** (an EVA kerbal working on a part, setting a target) aren't delayed.
 - **Symmetry:** clicking a button on a part with symmetry queues one command for all its counterparts.
 - **Science results (Review Data):** Transmit, Discard, Reset and Process in lab are queued like any command, and the data stays on board until the command arrives, as if you'd pressed Keep. Keep acts at once. This works for mod experiments that use the stock dialog too.
+- **Windows opened from a part menu:** their buttons that command the vessel are delayed too: the robotics controller's playback, KAS's winch remote, Konstruction's build buttons, MKS Orbital Logistics' start, abort and resume, Extraplanetary Launchpads' build, pause, cancel, finish and release, and RealAntennas' dish targeting. Each mod's file in `GameData/LightLag/Rules/` lists them (`LIGHTLAG_WINDOW`); another mod can add its own.
 - **Sliders:** a drag is sent as one change, and the slider shows the value on its way. Toggles and other controls show the part's actual state until the command arrives.
 
 ## Known limitations
 
 - Stick and throttle input still in flight is lost on a scene change or reload. Queued commands are kept.
-- Buttons inside windows opened from a part menu aren't delayed yet: the robotics controller and mod windows (KAS winch, Konstruction, MKS Orbital Logistics, RealAntennas targeting). The science results dialog is covered (below).
-- Resource flow and priority toggles in part menus aren't delayed.
+- Resource transfers aren't delayed: part-menu resource flow and priority toggles, crew-free resource transfer, and KAS's fuel transfer window.
+- Editing a robotics controller's sequence (keyframes, length) isn't delayed; its playback buttons are.
+- Window commands that aren't on a part module (EL's build controls, MKS transfers, RealAntennas targeting, Konstruction's Dekonstructor and KonFabricator) are lost on a reload or scene change. The queue window marks them "(not saved)".
 - Staging works only on the active vessel, so a staging command that arrives after you switch vessels fails.
 - The queue window doesn't block clicks to the scene behind it.
 

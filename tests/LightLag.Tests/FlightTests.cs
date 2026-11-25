@@ -143,6 +143,9 @@ namespace LightLag.Tests
 
                     // 8. Discard in the science results dialog arrives after the delay.
                     yield return StartCoroutine(ScienceDialogTest(v, delay));
+
+                    // 9. A window button (robotics controller Play) arrives after the delay.
+                    yield return StartCoroutine(WindowButtonTest(v, mod, delay));
                 }
                 finally
                 {
@@ -165,6 +168,7 @@ namespace LightLag.Tests
             "non-player commands are instant",
             "SAS mode click arrives after the delay", "queued command is saved", "part-menu button arrives after the delay",
             "science dialog Discard arrives after the delay",
+            "window button arrives after the delay",
         };
 
         private IEnumerator PartEventTest(Vessel v, Assembly mod, double delay)
@@ -264,6 +268,49 @@ namespace LightLag.Tests
             Result(pass ? "PASS" : "FAIL", name,
                 gone.HasValue ? $"{experiment.experimentID} Discard: delay {delay:0.000} s, data gone after {gone.Value:0.000} s (slack {slack:0.000} s)"
                               : $"{experiment.experimentID} Discard: delay {delay:0.000} s, data still on board after {delay + 5.0:0.0} s");
+        }
+
+        private IEnumerator WindowButtonTest(Vessel v, Assembly mod, double delay)
+        {
+            const string name = "window button arrives after the delay";
+            PartModule controller = v.parts.SelectMany(p => p.Modules.Cast<PartModule>())
+                .FirstOrDefault(m => m.GetType().FullName == "Expansions.Serenity.ModuleRoboticController");
+            Type playerInput = mod.GetType("LightLag.PlayerInput");
+            if (controller == null || playerInput == null)
+            {
+                Result("SKIP", name, controller == null ? "no robotics controller (Breaking Ground) on the vessel" : "LightLag.PlayerInput not found");
+                yield break;
+            }
+            MethodInfo toggle = controller.GetType().GetMethod("TogglePlay", Type.EmptyTypes);
+            PropertyInfo playing = controller.GetType().GetProperty("SequenceIsPlaying");
+            bool before = (bool)playing.GetValue(controller);
+
+            // Press Play/pause the way the window's button does: inside player context.
+            double sent = Planetarium.GetUniversalTime();
+            playerInput.GetMethod("Enter").Invoke(null, null);
+            try { toggle.Invoke(controller, null); }
+            finally { playerInput.GetMethod("Exit").Invoke(null, new object[] { null }); }
+
+            double? arrived = null, early = null;
+            while (Planetarium.GetUniversalTime() - sent < delay + 5.0)
+            {
+                yield return new WaitForFixedUpdate();
+                double t = Planetarium.GetUniversalTime() - sent;
+                if ((bool)playing.GetValue(controller) != before)
+                {
+                    if (t < delay - 3 * Time.fixedDeltaTime) early = t;
+                    arrived = t;
+                    break;
+                }
+            }
+            double slack = 3 * Time.fixedDeltaTime;
+            bool pass = arrived.HasValue && !early.HasValue && Math.Abs(arrived.Value - delay) <= slack;
+            Result(pass ? "PASS" : "FAIL", name,
+                arrived.HasValue ? $"robotics Play/pause: delay {delay:0.000} s, arrived after {arrived.Value:0.000} s (slack {slack:0.000} s)"
+                                 : $"robotics Play/pause: delay {delay:0.000} s, not arrived after {delay + 5.0:0.0} s (the window patches may not be applied; check the log for 'window')");
+
+            // Put it back, outside player context, so it acts at once.
+            if (arrived.HasValue) toggle.Invoke(controller, null);
         }
 
         private static int? PendingInputs(Vessel v)

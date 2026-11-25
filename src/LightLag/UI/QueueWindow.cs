@@ -96,7 +96,7 @@ namespace LightLag
             foreach (QueuedCommand command in module.Queue.Commands)
             {
                 GUILayout.BeginHorizontal();
-                GUILayout.Label(command.Label, GUILayout.Width(130));
+                GUILayout.Label(command.Saveable ? command.Label : Localizer.Format("#LightLag_Queue_NotSaved", command.Label), GUILayout.Width(130));
                 GUILayout.Label(Status(command, now), GUILayout.ExpandWidth(true));
                 bool wasEnabled = GUI.enabled;
                 GUI.enabled = CommandQueue.CanCancel(command, now, delay);
