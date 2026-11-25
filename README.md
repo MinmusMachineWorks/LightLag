@@ -66,6 +66,17 @@ dotnet build LightLag.sln -c Release
 2. **Build.** `LightLag.dll` lands in `GameData/LightLag/Plugins/`. When `KSPBT_GameRoot` is set, the whole `GameData/LightLag/` folder (DLL, localization, `.version`) is also copied into the install.
 3. **Test.** The in-game test harness is in [tests/](tests/README.md).
 
+**Dependencies through CKAN.** A dev build isn't a CKAN install, so CKAN won't install its dependencies by itself; it only sees `LightLag.dll` as an unmanaged mod. A dev metapackage fixes that:
+
+```
+python3 tools/dev_ckan.py
+```
+
+This writes `ckan/LightLag-dev.ckan` (gitignored). It carries LightLag's relations from `ckan/metadata.json` (requires Harmony2, recommends RealAntennas, conflicts with RemoteTech and SignalDelay) and installs no files. Install it once in the CKAN GUI with **File → Install from .ckan…**. CKAN then installs and keeps the dependencies, offers the recommendations, and refuses conflicting mods, while each build copies the latest LightLag in.
+
+- **From the command line:** with the CKAN GUI closed, `python3 tools/dev_ckan.py --gamedir "<KSP folder>"` also installs it. Recommended mods aren't pulled in this way.
+- **After `ckan/metadata.json` changes:** run the script again and install the new file. Its version only goes up when the metadata changes.
+
 **CI:** `.github/workflows/release.yml` builds every push. A `v*.*.*` tag also publishes a release and its CKAN entry through the shared Minmus Machine Works workflow. CKAN metadata lives in `ckan/metadata.json`.
 
 ## License

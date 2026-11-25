@@ -32,7 +32,7 @@ Read these before changing anything:
 | Change what's saved in the queue | `docs/DESIGN.md` persistence notes |
 | Resolve an open question | `docs/DESIGN.md` (mark it decided and say what was chosen) |
 | Learn a non-obvious gotcha (KSP or CommNet internals, load order, another mod's behavior) | `docs/DESIGN.md` gotchas |
-| Change the build, dependencies, target framework, CI, or install layout | README "Building"/"Install", `ckan/metadata.json`, and "Build & test" below |
+| Change the build, dependencies, target framework, CI, or install layout | README "Building"/"Install", `ckan/metadata.json` (the dev metapackage follows it), and "Build & test" below |
 | Change the public API | `docs/DESIGN.md` API section, and tell the user: MechJebRTBridge's LightLag backend depends on it |
 | Add or change a `[LightLag]` log line the tests match, or a test | `tests/LightLag.Tests` and the table in `tests/README.md` |
 
@@ -67,6 +67,7 @@ docs/COVERAGE.md              input coverage matrix
 GameData/LightLag/            packaging root (Plugins/ and LightLag.version are build outputs, gitignored)
 tests/LightLag.Tests/         dev-only in-game test harness (separate plugin, never shipped)
 ckan/metadata.json            CKAN metadata template for the shared release workflow
+tools/dev_ckan.py             writes ckan/LightLag-dev.ckan, a metapackage of those relations for dev installs
 ```
 
 **Reference checkouts beside this repo** (read-only, never modified from here):
@@ -77,6 +78,7 @@ ckan/metadata.json            CKAN metadata template for the shared release work
 ## Build & test
 
 - **Build:** `dotnet build LightLag.sln -c Release`.
-- **Machine paths:** `KSPBT_GameRoot` and `KSPBT_ManagedPath` go in the gitignored `Directory.Build.props.user`. The KSP install needs Harmony2.
+- **Machine paths:** `KSPBT_GameRoot` and `KSPBT_ManagedPath` go in the gitignored `Directory.Build.props.user`. Without it, KSPBuildTools uses the default Steam path. The KSP install needs Harmony2.
+- **Dev install:** a build copies `GameData/LightLag/` into the install. `tools/dev_ckan.py` writes the `LightLag-dev` CKAN metapackage from `ckan/metadata.json`, so CKAN manages the dependencies of a dev install. It's generated, never edited by hand: change `ckan/metadata.json` instead.
 - **CI:** `.github/workflows/release.yml` installs Harmony2 through CKAN, builds the solution, and hands `GameData/` to `MinmusMachineWorks/KSP-Mods-CKAN`'s `release-mod.yml`. A `v*.*.*` tag publishes a release (`release_status: testing` until 1.0). MinVer derives the version from the tag.
 - **Tests:** `tests/README.md`.
