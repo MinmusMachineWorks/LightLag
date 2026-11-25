@@ -30,7 +30,8 @@ In flight, click the harness's white toolbar button. It runs the tests below aga
 **Test vessel:**
 - an uncrewed probe with a CommNet connection, a few thousand km or more from its control source (orbit is fine);
 - no active engines (the throttle test moves the throttle);
-- no autopilot driving the throttle.
+- no autopilot driving the throttle or SAS;
+- a probe core with prograde hold, for the SAS mode test. The harness turns SAS on for it and restores SAS and its mode afterwards.
 
 The harness temporarily lowers the speed-of-light multiplier so that the delay is about 2 s, and restores it afterwards.
 
@@ -38,6 +39,9 @@ The harness temporarily lowers the speed-of-light multiplier so that the delay i
 |---|---|
 | delay matches the control path | `DelayService.GetDelay` equals the sum of the `ControlPath` link lengths ÷ (c × multiplier), doubled with round trip |
 | throttle arrives after the delay | after the harness sets the throttle input, `vessel.ctrlState.mainThrottle` changes only after the delay (± 3 physics frames) |
+| non-player commands are instant | a direct `ActionGroups.SetGroup(SAS, true)`, outside any player entry point (as KSP or MechJeb would call it), takes effect in the same frame |
+| SAS mode click arrives after the delay | invoking the navball's `VesselAutopilotUI.OnClickButton` changes `Autopilot.Mode` only after the delay (± 3 physics frames); Prograde, or StabilityAssist if another mode is set |
+| queued command is saved | while that click is queued, `LightLagVessel`'s save holds a `COMMAND` with `type = SasMode` and the mode |
 
 ## Space Center tests
 

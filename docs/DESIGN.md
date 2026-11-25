@@ -22,10 +22,11 @@ The background research is in `../COMMNET_RT_FEASIBILITY.md` and the repo plan i
 | Steering and throttle | `FlyByWireDelay` (done): queue the player's `ctrlState` with an arrival time, replay it after the delay. Owned by `LightLagVessel` (done), a plain VesselModule on loaded vessels | M1 |
 | Signal loss | `SignalLoss` (done): input already sent still arrives; then the stick centers and the throttle is cut or held | M1 |
 | Readout | `DelayReadout` (done): IMGUI line under the stock time display | M1 |
-| Queue | `LightLagVessel` (VesselModule), `CommandQueue`, `QueuedCommand` and its subclasses | M2 |
-| Discrete hooks | Harmony prefixes on `StageManager.ActivateNextStage`, `ActionGroupList.ToggleGroup` and `VesselAutopilot.SetMode` | M2 |
-| Queue UI | `UI/QueueWindow`: countdowns, cancel, extra delay | M2 |
-| Time warp | drop out of warp before a queued command arrives | M2 |
+| Player context | `PlayerInput` (done): a depth counter that Harmony sets around the player's entry points, `FlightInputHandler.Update`, `ActionGroupToggleButton.SetToggle` and `VesselAutopilotUI.OnClickButton` | M2 |
+| Discrete hooks | `CommandHooks` (done): prefixes on `StageManager.ActivateNextStage`, `ActionGroupList.ToggleGroup` and `SetGroup`, and `VesselAutopilot.SetMode`. They queue a command only in player context | M2 |
+| Queue | `CommandQueue` (done) and `QueuedCommand` with `StageCommand`, `ActionGroupCommand` and `SasModeCommand` (done), held and run by `LightLagVessel` | M2 |
+| Queue UI | `QueueWindow` (done): opened by clicking the readout; countdowns, cancel, extra delay | M2 |
+| Time warp | `WarpGuard` (done): drops on-rails warp to 1× before a queued command runs | M2 |
 | API | `LightLagAPI` | M3 |
 | RealAntennas adapter | `LightLag.RealAntennas.dll` with `[KSPAssemblyDependency("RealAntennas")]`; strength rules from `RACommLink` data rates | M4 |
 | Part menus | `BaseEvent.Invoke`, part-menu fields | M5 |
@@ -53,13 +54,39 @@ public static class LightLagAPI
 }
 ```
 
-## 5. Persistence (M2)
+## 5. Discrete commands and persistence
 
-**Steering and throttle input in flight isn't saved:** what's still in `FlyByWireDelay`'s queue is lost on a scene change or reload. The vessel keeps the last input that had arrived.
+**How a command travels (M2):**
+- **Sent:** a player command on a vessel with delay becomes a `QueuedCommand` with `SentUT`, `ArrivalUT` = sent + delay, and `ExecuteUT` = the later of arrival and sent + the vessel's extra delay. The original call is skipped.
+- **Pass-through:** with a delay under half a physics frame and no extra delay, the call just runs.
+- **No signal:** the command isn't sent; a message says so.
+- **Runs:** `LightLagVessel` runs due commands each physics frame while the vessel is off rails, outside player context, so the hooks let them through. A failure (staging on a vessel that's no longer active, a SAS mode the vessel can't hold) shows a message.
+- **Cancel:** a cancel is a signal too. The window allows it only while now + delay is before `ExecuteUT`, and the command is dropped if the cancel arrives first.
+- **Extra delay:** per vessel, saved, and applied to discrete commands sent afterwards. It doesn't apply to steering and throttle, or under local control.
 
-**Discrete commands (M2)** are saved in `LightLagVessel`'s ConfigNode. Each command records its send UT, arrival UT, type, label and payload.
+**Saved:** `LightLagVessel` writes its queue into the vessel's `VESSELMODULES` node in the save:
 
-**Not decided yet:** what happens with commands for unloaded vessels. They could run on load, or be dropped with a message.
+```
+LightLagVessel
+{
+    extraDelay = 0
+    COMMAND
+    {
+        type = SasMode          // Stage | ActionGroup | SasMode
+        sent = 123456.78
+        arrival = 123458.9
+        execute = 123458.9
+        cancelArrival = …       // only when a cancel was sent
+        mode = Prograde         // payload: Stage: toggleStageGroup; ActionGroup: group, toggle, state
+    }
+}
+```
+
+An unreadable entry is dropped with a warning in the log.
+
+**Not saved:** steering and throttle input in flight. What's still in `FlyByWireDelay`'s queue is lost on a scene change or reload; the vessel keeps the last input that had arrived.
+
+**Unloaded vessels:** the queue stays in the save. Commands that came due while the vessel was unloaded run in order once it's loaded and off rails, with a message. Staging among them fails unless the vessel is the active one.
 
 ## 6. Questions
 
@@ -67,10 +94,11 @@ public static class LightLagAPI
 |---|---|---|
 | 1 | Name | Decided: LightLag |
 | 2 | One-way or round-trip delay | Decided: one way by default, with round trip as a setting |
-| 3 | Do commands already sent still arrive after signal loss? | Decided for steering and throttle (M1): yes. Discrete commands follow in M2 |
+| 3 | Do commands already sent still arrive after signal loss? | Decided: yes, for steering and throttle (M1) and for discrete commands (M2) |
 | 4 | Which part-menu actions are exempt? | Open (a `skip_control`-style category plus a list) |
 | 5 | Control with no signal | Proposed: stock "Require Signal for Control"; no stricter rule of our own |
-| 6 | Commands for unloaded vessels | Open |
+| 6 | Commands for unloaded vessels | Decided (M2): kept in the save; overdue ones run in order on load, with a message |
+| 7 | Which calls count as the player's? | Decided (M2): only those made inside `FlightInputHandler.Update`, `ActionGroupToggleButton.SetToggle` and `VesselAutopilotUI.OnClickButton`. KSP's and other mods' calls stay instant |
 
 ## 7. Gotchas
 
@@ -84,6 +112,12 @@ public static class LightLagAPI
 - **Only changes are queued.** Consecutive equal states are skipped, so a long delay doesn't build a queue of identical frames.
 - **Arrival slack:** inputs due within half a physics frame are delivered this frame, so a near-zero delay (on the pad, at KSC) adds no lag.
 
+- **Player context, not call sites:** KSP itself calls `SetGroup(SAS, false)` (`VesselAutopilot.Update`) and `SetMode(StabilityAssist)` (`VesselAutopilotUI.LateUpdate`), and MechJeb calls `StageManager.ActivateNextStage` directly. Delaying those would make on-board behavior lag, so `CommandHooks` intercept only inside the player entry points that `PlayerInput` brackets.
+- **The stage key does two things:** `FlightInputHandler.Update` calls `StageManager.ActivateNextStage()` and then `ToggleGroup(Stage)`. When the staging is queued, the toggle in the same frame is folded into the `StageCommand`.
+- **Staging acts on the active vessel only:** `ActivateNextStage` is static. A `StageCommand` that comes due after the player switched vessels fails with a message.
+- **SAS mode buttons resync:** `VesselAutopilotUI.OnClickButton` returns early when `SetMode` returns false, and `LateUpdate` redraws the buttons from `Autopilot.Mode`. The hook returns false for a queued mode, so the navball shows the vessel's actual mode until the command arrives. The SAS/RCS buttons likewise follow the group's actual state.
+- **Time warp:** on-rails warp can jump past a command within one frame, and staging can't run on rails. `WarpGuard` drops on-rails warp to 1× (physics warp is left alone) when the next command is within three frames at the current rate plus a second; commands wait while the vessel is packed.
+- **Typing in the queue window:** IMGUI text fields don't stop KSP's key bindings, so the window sets a `KEYBOARDINPUT` lock while its field has focus.
 - **Settings section:** `LightLagParams` uses `Section = "Advanced"` and stock CommNet's `DisplaySection` (`#autoLoc_6002170`), with `SectionOrder = 2`, so it shows up right after the CommNet settings.
 - **RealAntennas and plasma:** RA overrides `CommNetwork.TryConnect` and never calls `GetSignalStrengthMultiplier`, so stock's plasma penalty doesn't reach RA links. A RealAntennas PR is planned. Until then, a vessel in plasma under RA keeps its link.
 
@@ -95,7 +129,7 @@ public static class LightLagAPI
    - delayed steering and throttle;
    - signal-loss rules;
    - local-control exemptions.
-3. **M2:** the queue:
+3. **M2:** the queue. **Code done; not checked in game yet.**
    - staging, action groups, SAS/RCS and SAS modes through it;
    - queue window with cancel and extra delay;
    - the queue is saved;

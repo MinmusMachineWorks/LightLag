@@ -50,10 +50,18 @@ src/LightLag/                 LightLag.dll
   Log.cs                      [LightLag]-prefixed logging
   Delay/DelayService.cs       delay from vessel.connection.ControlPath; Applies(), GetDelay(), Format()
   Delay/LocalControl.cs       EVA or CommNet's Kerbal control flag: no delay
-  Vessel/LightLagVessel.cs    VesselModule on loaded vessels; keeps FlyByWireDelay first in OnPreAutopilotUpdate
+  Vessel/LightLagVessel.cs    VesselModule on loaded vessels: FlyByWireDelay first in OnPreAutopilotUpdate; queue, extra delay, save
   Input/FlyByWireDelay.cs     queues the player's ctrlState and replays it after the delay
+  Input/PlayerInput.cs        player context: set around the player's entry points by Harmony
+  Input/Hooks/CommandHooks.cs prefixes on staging, action groups and SAS modes; queue in player context
+  Queue/QueuedCommand.cs      a discrete command: sent, arrival and execute UTs, cancel, save/load
+  Queue/Commands/*.cs         StageCommand, ActionGroupCommand, SasModeCommand
+  Queue/CommandQueue.cs       a vessel's commands in run order; runs due ones, handles cancels
   Rules/SignalLoss.cs         stick centered, throttle cut or held, once in-flight input has arrived
-  UI/DelayReadout.cs          IMGUI delay line in flight
+  Rules/WarpGuard.cs          drops time warp before a queued command runs
+  UI/DelayReadout.cs          IMGUI delay line in flight; click it for the queue window
+  UI/QueueWindow.cs           command queue: countdowns, cancel, extra delay
+  UI/Messages.cs              on-screen messages
 docs/DESIGN.md                design, decisions, gotchas, milestones
 docs/COVERAGE.md              input coverage matrix
 GameData/LightLag/            packaging root (Plugins/ and LightLag.version are build outputs, gitignored)
