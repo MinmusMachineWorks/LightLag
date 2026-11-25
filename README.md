@@ -37,7 +37,7 @@ The stock throttle gauge shows the throttle you commanded; the vessel follows it
 
 ## Command queue
 
-Staging, action groups (custom 1–10, abort, gear, lights, brakes), SAS and RCS toggles and SAS modes don't act at once on a vessel with delay. They're queued and run when the signal arrives. With no signal they aren't sent at all, unless "Require Signal for Control" is off; then they act at once.
+Staging, action groups (custom 1–10, abort, gear, lights, brakes), SAS and RCS toggles and SAS modes don't act at once on a vessel with delay. They're queued and run when the signal arrives. With no signal they aren't sent at all, unless "Require Signal for Control" is off; then they act at once. Without a signal, stock already locks the stick, throttle, SAS and RCS, so those keys simply do nothing. Staging and action groups, which stock still allows, show a "No signal: … not sent" message instead.
 
 Click the readout to open the **command queue** window for the active vessel:
 - **Countdowns:** when each command arrives and when it runs.
