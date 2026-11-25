@@ -49,7 +49,7 @@ On-rails time warp drops to 1× before a queued command runs; physics warp is le
 Only your own commands are delayed. KSP's (SAS switching itself off) and other mods' (MechJeb staging) run on board without delay.
 
 **Part menus:**
-- **Instant:** buttons and controls that don't command the vessel: Control From Here and the camera, Review Data, KerbNet and other windows, renaming and targets, crew transfer, construction settings like autostrut, plus mod buttons that only open a window. [docs/PART_MENUS.md](docs/PART_MENUS.md) has the full analysis; `GameData/LightLag/Exemptions.cfg` holds the list, and other mods can extend it with a Module Manager patch (see the file). A mod can also mark an event or field with RemoteTech's `skip_delay` (needs a signal, no delay) or `skip_control` (no checks) category.
+- **Instant:** buttons and controls that don't command the vessel: Control From Here and the camera, Review Data, KerbNet and other windows, renaming and targets, plus mod buttons that only open a window. [docs/PART_MENUS.md](docs/PART_MENUS.md) has the full analysis; `GameData/LightLag/Exemptions.cfg` holds the list, and other mods can extend it with a Module Manager patch (see the file). A mod can also mark an event or field with RemoteTech's `skip_delay` (needs a signal, no delay) or `skip_control` (no checks) category.
 - **Other vessels' parts** (an EVA kerbal working on a part, setting a target) aren't delayed.
 - **Symmetry:** clicking a button on a part with symmetry queues one command for all its counterparts.
 - **Sliders:** a drag is sent as one change, and the slider shows the value on its way. Toggles and other controls show the part's actual state until the command arrives.

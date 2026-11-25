@@ -12,9 +12,7 @@ Every button (`KSPEvent`) and control (`KSPField` with a flight UI control) in t
 |---|---|---|---|
 | Your viewpoint | Control From Here (`ModuleCommand.MakeReference`, `KerbalSeat`/`ModuleDockingNode`/`ModuleGrappleNode.MakeReferenceTransform`), `ModuleCommand.ChangeControlPoint`, `Part.AimCamera`, `Part.ResetCamera` | EL `ELControlReference.MakeReference` | Picks the reference you fly and view from. The navball and SAS switch at once |
 | Windows and readouts | Review Data (`ModuleScienceExperiment`, `ModuleScienceContainer`), `ModuleKerbNetAccess.OpenKerbNet`, `ModuleRoboticController.OpenControllerEditor`, `ModuleFlightDisplay.ToggleGui`, `ModuleOrbitalScanner` overlay, color, resource and cutoff | SCANsat `reviewEvent`; Firespitter info, help and trim popups, launch-position logging; KAS winch and fuel GUIs; Konstruction's Konstructor, Dekonstructor and Konfabricator; MKS Orbital Logistics; EL Show/Hide/Rename UI; RealAntennas planning, targeting and debug | Opens or adjusts a display |
-| Names and targets | Rename Vessel, Rename Asteroid, Rename Comet, `ModuleGroundExpControl.SetVesselNaming`, Target Center of Mass (asteroids, comets) | — | Bookkeeping, not the craft |
-| Crew on board | `Part.SpawnTransferDialog` (Transfer Crew), `ModuleExperienceManagement.FinalizeExperience` (Level Up Crew) | MKS `ModuleColonyRewards.CheckRewards` | Done by kerbals there, or a career tally |
-| Construction settings | `Part.ToggleAutoStrut`, `Part.ToggleRigidAttachment`, `Part.RemoveFromSymmetry` | — | Build properties, not something a probe can be commanded to do |
+| Names, targets and tallies | Rename Vessel, Rename Asteroid, Rename Comet, `ModuleGroundExpControl.SetVesselNaming`, Target Center of Mass (asteroids, comets) | MKS `ModuleColonyRewards.CheckRewards` | Bookkeeping, not the craft |
 | Cosmetic | `ModuleServiceModule.openCutaway` (field) | — | Visual only |
 
 A mod can also mark an event or field with RemoteTech's `category = "skip_control"` (instant) or `"skip_delay"` (needs a signal, no delay). None in the mod set do.
@@ -26,6 +24,7 @@ Everything not listed above, including:
 - **Parts that move:** Extend/Retract on panels, antennas and ladders; Deploy and Cut on chutes; Toggle Gear; servos; Deploy on fairings.
 - **Separation and docking:** Decouple, Undock, Release, crossfeed, Make Primary Docking Node, Release Clamp.
 - **Science and comms:** Deploy and Reset on experiments, Transfer Data, Transmit Data, the Enviro sensor's Toggle Display (it powers the sensor), orbital surveys, Start Object Tracking.
+- **Crew and construction:** Transfer Crew, Level Up Crew, Autostrut, Rigid Attachment, Remove From Symmetry. They change the craft or its crew, so the order has to get there. A vessel with a pilot or probe-capable crew has local control and no delay anyway.
 - **Mods:** MKS converters and WOLF (Connect to Depot, routes, recipes), USI deploy, anchor and pulse-drive fuel, Konstruction magnets, pistons and welding, KAS winches and ports, SCANsat Start/Stop scan and Analyze Data, RealAntennas Disable antenna permanently.
 
 ## Not covered (instant whatever the table says)
@@ -35,7 +34,7 @@ Everything not listed above, including:
 
 ## Differences from RemoteTech
 
-RemoteTech's list of instant buttons is only renaming, crew transfer and the camera. It delays Control From Here, Review Data, KerbNet, target selection, the scanner overlay and construction settings. LightLag treats those as view, UI or build settings instead. RemoteTech also delays only toggles, sliders and cycles among the controls; LightLag delays every kind.
+RemoteTech's list of instant buttons is only renaming, crew transfer and the camera. It delays Control From Here, Review Data, KerbNet, target selection and the scanner overlay; LightLag treats those as view or UI. LightLag delays crew transfer, which RemoteTech doesn't. RemoteTech also delays only toggles, sliders and cycles among the controls; LightLag delays every kind.
 
 ## Adding a mod
 
