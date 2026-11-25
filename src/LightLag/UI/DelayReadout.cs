@@ -4,7 +4,8 @@ namespace LightLag
 {
     /// <summary>
     /// A one-line readout for the active vessel in flight: its signal delay, "no signal", or
-    /// "local control", plus how many inputs are still in flight. Drawn with IMGUI under the
+    /// "local control", plus whether stick and throttle input is still arriving and how many
+    /// commands are queued. Drawn with IMGUI under the
     /// stock time and signal display; hidden in map view, with the UI hidden (F2), and when
     /// delay is off or CommNet isn't running. Clicking it opens the <see cref="QueueWindow"/>.
     /// </summary>
@@ -92,7 +93,7 @@ namespace LightLag
                     ? Localize("#LightLag_Readout_NoSignal")
                     : KSP.Localization.Localizer.Format("#LightLag_Readout_Delay", DelayService.Format(delay));
             }
-            if (pending > 0) text += " · " + KSP.Localization.Localizer.Format("#LightLag_Readout_Pending", pending);
+            if (pending > 0) text += " · " + Localize("#LightLag_Readout_Pending");
             if (queued > 0) text += " · " + KSP.Localization.Localizer.Format("#LightLag_Readout_Queued", queued);
             return text;
         }

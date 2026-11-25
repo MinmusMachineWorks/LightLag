@@ -6,8 +6,8 @@ using UnityEngine;
 namespace LightLag
 {
     /// <summary>
-    /// The active vessel's command queue, opened by clicking the delay readout. Shows how much
-    /// steering and throttle input is still in flight (it can't be cancelled), then lists each
+    /// The active vessel's command queue, opened by clicking the delay readout. Shows whether
+    /// stick and throttle input is still arriving, and until when (it can't be cancelled), then lists each
     /// command with its countdown, lets the player cancel one (the cancel is itself a signal, so
     /// it's allowed only if it can arrive before the command runs), and sets the vessel's extra
     /// delay. Drawn with IMGUI in KSP's skin.
@@ -70,10 +70,11 @@ namespace LightLag
 
             GUILayout.Label(DelayReadout.Text(vessel) ?? Localizer.Format("#LightLag_Queue_NoDelay"));
 
-            // Steering and throttle travel separately from the commands below.
+            // Stick and throttle are analog: holding a key sends a stream of changes, so they're
+            // shown as one line (still arriving, and until when), not as a list of commands.
             FlyByWireDelay input = module.Input;
             if (input != null && input.PendingCount > 0)
-                GUILayout.Label(Localizer.Format("#LightLag_Queue_InputInFlight", input.PendingCount,
+                GUILayout.Label(Localizer.Format("#LightLag_Queue_InputInFlight",
                     DelayService.Format(Math.Max(0, input.LastArrivalUT - now))));
 
             GUILayout.BeginHorizontal();

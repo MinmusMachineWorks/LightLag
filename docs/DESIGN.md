@@ -99,6 +99,7 @@ An unreadable entry is dropped with a warning in the log.
 | 5 | Control with no signal | Decided: follow stock's "Require Signal for Control". **On:** nothing new is sent; input and commands already sent still arrive, then the stick centers and the throttle is cut or held. This is stricter than stock's partial control, which still allows staging and action groups without a signal, because a command can't reach the vessel without one. **Off:** delay doesn't apply, so the vessel is controlled at once, as stock allows; input still in flight is dropped, and queued commands still run when due |
 | 6 | Commands for unloaded vessels | Decided (M2): kept in the save; overdue ones run in order on load, with a message |
 | 7 | Which calls count as the player's? | Decided (M2): only those made inside `FlightInputHandler.Update`, `ActionGroupToggleButton.SetToggle` and `VesselAutopilotUI.OnClickButton`. KSP's and other mods' calls stay instant |
+| 8 | How is stick and throttle input in flight shown? | Decided: as one indicator, not a list or a count. Holding a key sends a stream of small changes, so a count means nothing; the readout says "input arriving" and the queue window says how long until the last of it lands. Only discrete commands are listed, and only they can be cancelled |
 
 ## 7. Gotchas
 
@@ -109,7 +110,7 @@ An unreadable entry is dropped with a warning in the log.
   - `LightLagVessel` re-checks each physics frame that its callback is still first.
 - **Non-active loaded vessels:** KSP zeroes their stick and translation every frame but leaves their throttle. `FlyByWireDelay` still runs on them, so input sent before a vessel switch keeps arriving.
 - **Throttle gauge:** the stock gauge shows `FlightInputHandler.state.mainThrottle`, the commanded throttle, not what has arrived. The vessel acts on `ctrlState`.
-- **Only changes are queued.** Consecutive equal states are skipped, so a long delay doesn't build a queue of identical frames. When delay starts (after a load, a vessel switch, crew leaving), the current input counts as already sent; after a signal loss, it's compared with what the vessel is doing (stick centered, throttle per the setting). Otherwise unchanged input would show as in flight.
+- **Only changes are queued.** Consecutive equal states are skipped, so a long delay doesn't build a queue of identical frames. When delay starts (after a load, a vessel switch, crew leaving), the current input counts as already sent; after a signal loss, it's compared with what the vessel is doing (stick centered, throttle per the setting). Otherwise unchanged input would show as still arriving.
 - **Arrival slack:** inputs due within half a physics frame are delivered this frame, so a near-zero delay (on the pad, at KSC) adds no lag.
 
 - **Player context, not call sites:** KSP itself calls `SetGroup(SAS, false)` (`VesselAutopilot.Update`) and `SetMode(StabilityAssist)` (`VesselAutopilotUI.LateUpdate`), and MechJeb calls `StageManager.ActivateNextStage` directly. Delaying those would make on-board behavior lag, so `CommandHooks` intercept only inside the player entry points that `PlayerInput` brackets.
