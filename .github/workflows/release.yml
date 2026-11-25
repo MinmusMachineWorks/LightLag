@@ -1,0 +1,69 @@
+name: Build & release
+
+# Every push and PR: compile the plugin and the test harness, package the mod and validate its
+# .ckan (dry run, uploaded as an artifact).
+# A v*.*.* tag: also create the GitHub release and publish the .ckan to KSP-Mods-CKAN.
+# Packaging and publishing live in the shared workflow, MinmusMachineWorks/KSP-Mods-CKAN
+# .github/workflows/release-mod.yml. CKAN metadata is in ckan/metadata.json.
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*.*.*']
+  pull_request:
+
+jobs:
+  build:
+    # Pinned, not ubuntu-latest: CKAN's .deb needs mono-runtime, which ubuntu-26.04 doesn't ship.
+    # Matches the image KSPBuildTools' reusable build workflow uses.
+    runs-on: ubuntu-24.04
+    steps:
+      # fetch-depth 0 so MinVer can walk the full tag history
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # The compile action doesn't set up .NET itself.
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.x'
+
+      - uses: KSPModdingLibs/KSPBuildTools/.github/actions/setup-ckan@1.1.1
+
+      - uses: KSPModdingLibs/KSPBuildTools/.github/actions/install-dependencies@1.1.1
+        with:
+          dependency-identifiers: 'Harmony2'
+
+      # Builds GameData/LightLag/Plugins/LightLag.dll and GameData/LightLag/LightLag.version,
+      # plus the test harness, which isn't packaged.
+      - uses: KSPModdingLibs/KSPBuildTools/.github/actions/compile@1.1.1
+        with:
+          solution-file-path: LightLag.sln
+
+      # Stage GameData/ plus the license and readme, so the release job can extract the
+      # artifact straight into its package directory.
+      - name: Stage package
+        run: |
+          mkdir -p "$RUNNER_TEMP/build"
+          cp -R GameData LICENSE README.md "$RUNNER_TEMP/build/"
+          find "$RUNNER_TEMP/build" -type f
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LightLag-build
+          path: ${{ runner.temp }}/build
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    needs: build
+    permissions:
+      contents: write
+    uses: MinmusMachineWorks/KSP-Mods-CKAN/.github/workflows/release-mod.yml@main
+    with:
+      # The whole package comes from the build artifact; the checkout has no build outputs.
+      package-dir: package
+      include: GameData LICENSE README.md
+      build-artifact: LightLag-build
+      publish: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    secrets: inherit

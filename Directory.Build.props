@@ -1,0 +1,14 @@
+<Project>
+
+  <!-- Machine-specific overrides (gitignored): set KSPBT_GameRoot and KSPBT_ManagedPath here. -->
+  <Import Project="Directory.Build.props.user" Condition="Exists('Directory.Build.props.user')"/>
+
+  <PropertyGroup>
+    <!-- Absolute path so it's correct regardless of where msbuild is invoked from. -->
+    <KSPBT_ModRoot>$(MSBuildThisFileDirectory)GameData/LightLag/</KSPBT_ModRoot>
+    <KSPBT_ModPluginFolder>Plugins</KSPBT_ModPluginFolder>
+    <!-- CI uses setup-ckan + install-dependencies actions explicitly; locally mods are pre-installed. -->
+    <KSPBT_InstallCKANDependencies>false</KSPBT_InstallCKANDependencies>
+  </PropertyGroup>
+
+</Project>

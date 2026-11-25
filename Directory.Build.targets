@@ -1,0 +1,19 @@
+<Project>
+
+  <!--
+    KSPBuildTools already copies the DLL to $(KSPBT_ModRoot)/$(KSPBT_ModPluginFolder)/
+    (the repo's GameData — what the release workflow packages).
+    This target handles the second copy: the live KSP install for local dev, into
+    GameData/<AssemblyName>/Plugins (LightLag for the mod, LightLag.Tests for
+    the test harness).
+    Skipped in CI where KSPBT_GameRoot is the fake /tmp/ksp instance (no need to re-deploy there).
+  -->
+  <Target Name="CopyToKspInstall" AfterTargets="Build"
+          Condition="'$(KSPBT_GameRoot)' != '' And '$(CI)' != 'true'">
+    <MakeDir Directories="$(KSPBT_GameRoot)/GameData/$(AssemblyName)/Plugins" />
+    <Copy SourceFiles="$(TargetPath)"
+          DestinationFolder="$(KSPBT_GameRoot)/GameData/$(AssemblyName)/Plugins"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>

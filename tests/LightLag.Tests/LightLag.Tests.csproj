@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- In-game test harness for LightLag. Dev-only: never part of the release zip.
+       Builds to tests/LightLag.Tests/GameData/LightLag.Tests/Plugins/ (gitignored) and, via
+       Directory.Build.targets, into $(KSPBT_GameRoot)/GameData/LightLag.Tests/Plugins/.
+       See tests/README.md. -->
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <RootNamespace>LightLag.Tests</RootNamespace>
+    <AssemblyName>LightLag.Tests</AssemblyName>
+    <LangVersion>8</LangVersion>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <Prefer32Bit>false</Prefer32Bit>
+    <!-- Overrides the repo-wide value, which points at the release packaging folder.
+         The test DLL must never land in GameData/LightLag/. -->
+    <KSPBT_ModRoot>$(MSBuildThisFileDirectory)GameData/LightLag.Tests/</KSPBT_ModRoot>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="KSPBuildTools" Version="1.1.1" />
+  </ItemGroup>
+
+  <!-- No reference to LightLag itself: the tests are black-box. They find the mod through
+       KSP's loaded assemblies and observe its [LightLag] log lines and game state. -->
+
+</Project>

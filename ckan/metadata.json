@@ -1,0 +1,42 @@
+{
+  "spec_version": "v1.4",
+  "identifier": "LightLag",
+  "name": "LightLag",
+  "abstract": "Light-speed signal delay and a command queue for CommNet probes. Works with stock CommNet and RealAntennas",
+  "author": [
+    "Machine-Maker"
+  ],
+  "license": "MIT",
+  "ksp_version_min": "1.12.0",
+  "ksp_version_max": "1.12.99",
+  "depends": [
+    {
+      "name": "Harmony2"
+    }
+  ],
+  "recommends": [
+    {
+      "name": "RealAntennas"
+    }
+  ],
+  "conflicts": [
+    {
+      "name": "RemoteTech"
+    },
+    {
+      "name": "SignalDelay"
+    }
+  ],
+  "install": [
+    {
+      "find": "GameData/LightLag",
+      "install_to": "GameData"
+    }
+  ],
+  "release_status": "testing",
+  "resources": {
+    "homepage": "https://github.com/MinmusMachineWorks/LightLag",
+    "repository": "https://github.com/MinmusMachineWorks/LightLag",
+    "bugtracker": "https://github.com/MinmusMachineWorks/LightLag/issues"
+  }
+}
