@@ -40,11 +40,11 @@ The stock throttle gauge shows the throttle you commanded; the vessel follows it
 
 Staging, action groups (custom 1–10, abort, gear, lights, brakes), SAS and RCS toggles, SAS modes and the active vessel's part menus (buttons such as Extend or Deploy, and toggles, sliders and other controls) don't act at once on a vessel with delay. They're queued and run when the signal arrives. With no signal they aren't sent at all, unless "Require Signal for Control" is off; then they act at once. Without a signal, stock gives an uncrewed probe no control at all ("No Telemetry"), so with "Require Signal for Control" on, every key simply does nothing before LightLag sees it.
 
-The **flight computer** (click the delay on the signal bar) shows the active vessel's signal and queue. It follows KSP's UI scale and app scale settings, like the stock app windows:
+The **flight computer** (click the stopwatch on the signal bar) is LightLag's console for the active vessel: black glass, signal green, and amber for what's still on its way. Drag it by its title; it follows KSP's UI and app scale and hides with the UI (F2):
 - **Signal:** the delay, and the control path hop by hop: each relay or station, how far, and its share of the delay.
 - **Stick and throttle:** how long until the last of your stick and throttle input arrives. It can't be cancelled.
 - **Countdowns:** when each command arrives and when it runs.
-- **Cancel:** a cancel is a signal too, so it's allowed only if it can reach the vessel before the command runs.
+- **Abort:** an abort is a signal too, so it's allowed only if it can reach the vessel before the command runs.
 - **Extra delay:** new commands run at least this many seconds after you send them, even if the signal arrives sooner. Use it to time a command, for example staging at a moment you pick. It's saved per vessel.
 
 On-rails time warp drops to 1× before a queued command runs; physics warp is left alone. The queue is saved with the vessel; commands that came due while a vessel was unloaded run when it loads.
@@ -66,7 +66,6 @@ Only your own commands are delayed. KSP's (SAS switching itself off) and other m
 - Editing a robotics controller's sequence (keyframes, length) isn't delayed; its playback buttons are.
 - Window commands that aren't on a part module (EL's build controls, MKS transfers, RealAntennas targeting, Konstruction's Dekonstructor and KonFabricator) are lost on a reload or scene change. The flight computer marks them "(not saved)".
 - Staging works only on the active vessel, so a staging command that arrives after you switch vessels fails.
-- The flight computer window doesn't block clicks to the scene behind it.
 
 ## Building
 

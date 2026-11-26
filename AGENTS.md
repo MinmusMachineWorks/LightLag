@@ -69,7 +69,7 @@ src/LightLag/                 LightLag.dll
   Rules/WarpGuard.cs          drops time warp before a queued command runs
   UI/SignalBarWidget.cs       delay readout and flight computer button in the stock signal icon row (flight and map)
   UI/DelayStatus.cs           the active vessel's delay state as short and long text
-  UI/FlightComputerWindow.cs  flight computer: control path, input in flight, extra delay, queue with cancel
+  UI/FlightComputerPanel.cs   flight computer (uGUI console): control path, input in flight, queue with abort, extra delay
   UI/Messages.cs              on-screen messages
 docs/DESIGN.md                design, decisions, gotchas, milestones
 docs/COVERAGE.md              input coverage matrix

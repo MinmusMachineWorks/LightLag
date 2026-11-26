@@ -18,7 +18,7 @@ namespace LightLag
     /// background takes it in. If the row has no layout group, the readout is placed after the
     /// last icon and the background widened by hand. Its text copies the MET display; its
     /// tooltip is the stock one and gives the full state. Clicking it opens the
-    /// <see cref="FlightComputerWindow"/>. It's hidden when delay is off or CommNet isn't running,
+    /// <see cref="FlightComputerPanel"/>. It's hidden when delay is off or CommNet isn't running,
     /// and with the rest of the UI (F2). The panel's structure is logged once per game session.
     /// </summary>
     [KSPAddon(KSPAddon.Startup.Flight, false)]
@@ -27,7 +27,7 @@ namespace LightLag
         private const float Spacing = 4f, UpdateSeconds = 0.1f;
         private static bool _dumped;
 
-        private readonly FlightComputerWindow _window = new FlightComputerWindow();
+        private FlightComputerPanel _window;
         private GameObject _root;
         private RectTransform _rootRect, _row, _background;
         private TextMeshProUGUI _text;
@@ -36,27 +36,19 @@ namespace LightLag
         private float _height, _widened, _nextUpdate;
         private bool _inLayout;
         private string _shown;
-        private bool _uiHidden;
         private static Sprite _icon;
 
         public void Start()
         {
-            GameEvents.onHideUI.Add(OnHideUI);
-            GameEvents.onShowUI.Add(OnShowUI);
             StartCoroutine(Attach());
         }
 
         public void OnDestroy()
         {
-            GameEvents.onHideUI.Remove(OnHideUI);
-            GameEvents.onShowUI.Remove(OnShowUI);
-            _window.Release();
+            _window?.Destroy();
             Widen(0f);
             if (_root != null) Destroy(_root);
         }
-
-        private void OnHideUI() => _uiHidden = true;
-        private void OnShowUI() => _uiHidden = false;
 
         private IEnumerator Attach()
         {
@@ -145,6 +137,7 @@ namespace LightLag
 
             Button button = _root.AddComponent<Button>();
             button.targetGraphic = icon;
+            _window = new FlightComputerPanel(telemetry.control_tooltip?.prefab);
             button.onClick.AddListener(_window.Toggle);
 
             if (telemetry.control_tooltip != null && telemetry.control_tooltip.prefab != null)
@@ -173,7 +166,9 @@ namespace LightLag
 
         public void Update()
         {
-            if (_root == null || Time.unscaledTime < _nextUpdate) return;
+            if (_root == null) return;
+            _window.UpdateLock();
+            if (Time.unscaledTime < _nextUpdate) return;
             _nextUpdate = Time.unscaledTime + UpdateSeconds;
 
             // Without a signal, stock's red "no control" icon already says it all, so the readout
@@ -188,6 +183,7 @@ namespace LightLag
                 _shown = null;
             }
             if (state == DelayStatus.State.Off) _window.Close();
+            else _window.Refresh(vessel);
             if (text == null) return;
             if (text != _shown)
             {
@@ -196,16 +192,6 @@ namespace LightLag
                 if (!_inLayout) PlaceByHand();
             }
             _tooltip?.SetText(DelayStatus.Long(vessel) + "\n" + Localizer.Format("#LightLag_Bar_Tooltip"));
-        }
-
-        public void OnGUI()
-        {
-            if (_uiHidden)
-            {
-                _window.Release();
-                return;
-            }
-            _window.Draw();
         }
 
         /// <summary>Without a layout group: after the rightmost active icon, with the background widened to match.</summary>
