@@ -157,7 +157,8 @@ namespace LightLag
         /// <summary>
         /// The next-contact estimate, for the flight computer and the signal bar's tooltip:
         /// when, and through which station or vessel; or that none is expected within the
-        /// search; or that it's still looking. Null when there's nothing to say.
+        /// search; or that it's still looking. Null when there's nothing to say, including when
+        /// the estimate is off (RealAntennas mode).
         /// </summary>
         internal static string ContactText(ContactPredictor contact)
         {
@@ -169,8 +170,6 @@ namespace LightLag
                     return Localizer.Format("#LightLag_Contact_Found", DelayService.Format(wait), contact.Via);
                 case ContactPredictor.Status.NotFound:
                     return Localizer.Format("#LightLag_Contact_NotFound", DelayService.Format(contact.Horizon));
-                case ContactPredictor.Status.Unsupported:
-                    return Localizer.Format("#LightLag_Contact_Unsupported");
                 default:
                     return contact.Searching ? Localizer.Format("#LightLag_Contact_Searching") : null;
             }

@@ -42,7 +42,7 @@ Staging, action groups (custom 1–10, abort, gear, lights, brakes), SAS and RCS
 
 The **flight computer** (click the stopwatch on the signal bar) is LightLag's console for the active vessel: black glass, signal green, and amber for what's still on its way. Drag it by its title; it follows KSP's UI and app scale and hides with the UI (F2):
 - **Signal:** the delay, and the control path hop by hop: each relay or station, how far, and its share of the delay.
-- **Next contact:** with no signal, when the vessel should get one back, and through which station or relay ("Next contact in about 12m 30s, via …"), or that none is expected within the search (two orbits, or two days when landed, up to 50 days). It's an estimate: it assumes everything coasts on its current orbit, with no burns or staging, and leaves out plasma blackout and power running out. It needs stock CommNet; with RealAntennas there's no estimate yet.
+- **Next contact:** with no signal, when the vessel should get one back, and through which station or relay ("Next contact in about 12m 30s, via …"), or that none is expected within the search (two orbits, or two days when landed, up to 50 days). It's an estimate: it assumes everything coasts on its current orbit, with no burns or staging, and leaves out plasma blackout and power running out. It needs stock CommNet: with RealAntennas installed it's off, and the line isn't shown.
 - **Stick and throttle:** how long until the last of your stick and throttle input arrives. It can't be cancelled.
 - **Countdowns:** when each command arrives and when it runs.
 - **Abort:** an abort is a signal too, so it's allowed only if it can reach the vessel before the command runs.

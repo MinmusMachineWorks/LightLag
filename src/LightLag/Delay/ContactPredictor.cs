@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using CommNet;
 
 namespace LightLag
@@ -20,8 +21,11 @@ namespace LightLag
     /// <para><b>Not modelled:</b> burns and staging, plasma blackout, power running out, and
     /// vessels changing sphere of influence (the search stops at the end of the vessel's orbit
     /// patch). If the model says the vessel is connected now, something outside it (plasma,
-    /// say) is cutting the signal, so there's no estimate. Only on stock CommNet: another
-    /// network (RealAntennas) has its own link rules, and there's no estimate.</para>
+    /// say) is cutting the signal, so there's no estimate.</para>
+    ///
+    /// <para><b>Stock CommNet only.</b> In RealAntennas mode (RealAntennas loaded) it's off,
+    /// and so on any other network that replaces stock's: their links follow other rules.
+    /// RealAntennas gets its own model with the adapter (docs/DESIGN.md, Q9).</para>
     ///
     /// <para><b>Search:</b> samples up to a horizon (two of the vessel's orbits or its body's
     /// days, from an hour up to 50 days), a few dozen samples per frame so it doesn't stall the
@@ -34,8 +38,8 @@ namespace LightLag
         {
             /// <summary>Not searched yet, or the model can't explain the current outage.</summary>
             Unknown,
-            /// <summary>On a CommNet the model doesn't cover (RealAntennas).</summary>
-            Unsupported,
+            /// <summary>Off: RealAntennas mode, or another CommNet the model doesn't cover. Nothing is shown.</summary>
+            Off,
             Found,
             NotFound,
         }
@@ -83,6 +87,15 @@ namespace LightLag
         private bool _searching;
         private float _restartAt;
         private string _reachedVia;
+        private static bool _loggedOff;
+        private static bool? _realAntennas;
+
+        /// <summary>RealAntennas is loaded, so it runs CommNet (whether or not its network is up yet).</summary>
+        internal static bool RealAntennasMode =>
+            _realAntennas ?? (_realAntennas = AssemblyLoader.loadedAssemblies.Any(a => a.name == "RealAntennas")).Value;
+
+        /// <summary>The model covers stock's own network only, and never in RealAntennas mode.</summary>
+        private static bool Covers(CommNetwork network) => !RealAntennasMode && network.GetType() == typeof(CommNetwork);
         private Guid _loggedUnknown;
 
         /// <summary>Clears the answer, as when the vessel has a signal again.</summary>
@@ -130,10 +143,13 @@ namespace LightLag
         {
             CommNetwork network = CommNetNetwork.Instance?.CommNet;
             if (network == null || vessel.connection?.Comm == null) { Result = Status.Unknown; return; }
-            if (network.GetType() != typeof(CommNetwork))
+            if (!Covers(network))
             {
-                if (Result != Status.Unsupported) Log.Info($"next contact: no estimate on {network.GetType().FullName}");
-                Result = Status.Unsupported;
+                if (!_loggedOff)
+                    Log.Info(RealAntennasMode ? "next contact: off in RealAntennas mode"
+                                              : $"next contact: off on {network.GetType().FullName}");
+                _loggedOff = true;
+                Result = Status.Off;
                 return;
             }
 
@@ -192,7 +208,7 @@ namespace LightLag
         {
             connected = false;
             CommNetwork network = CommNetNetwork.Instance?.CommNet;
-            if (network == null || network.GetType() != typeof(CommNetwork) || vessel?.connection?.Comm == null) return double.NaN;
+            if (network == null || !Covers(network) || vessel?.connection?.Comm == null) return double.NaN;
             var model = new ContactPredictor { _now = Planetarium.GetUniversalTime() };
             model.Snapshot(network, vessel);
             if (model._start == null) return double.NaN;
