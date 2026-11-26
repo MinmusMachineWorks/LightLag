@@ -21,7 +21,6 @@ The settings are under **Difficulty → Advanced**, next to stock CommNet's:
 | Setting | Default | Meaning |
 |---|---|---|
 | Light-speed delay | On | Delay commands to uncrewed vessels |
-| Round-trip delay | Off | Commands take effect after the signal reaches the vessel and comes back |
 | Speed of light multiplier | 1.00 | Above 1 shortens every delay; below 1 lengthens it |
 | Throttle on signal loss | Cut | Cut or hold an uncrewed vessel's throttle when it loses its signal. Only with stock's "Require Signal for Control" on |
 

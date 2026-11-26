@@ -25,9 +25,6 @@ namespace LightLag
         [GameParameters.CustomParameterUI("#LightLag_Settings_DelayEnabled", toolTip = "#LightLag_Settings_DelayEnabled_Tip")]
         public bool delayEnabled = true;
 
-        [GameParameters.CustomParameterUI("#LightLag_Settings_RoundTrip", toolTip = "#LightLag_Settings_RoundTrip_Tip")]
-        public bool roundTrip = false;
-
         [GameParameters.CustomFloatParameterUI("#LightLag_Settings_LightSpeed", toolTip = "#LightLag_Settings_LightSpeed_Tip",
             minValue = 0.01f, maxValue = 100f, logBase = 10f, stepCount = 100, displayFormat = "F2")]
         public float lightSpeedMultiplier = 1f;

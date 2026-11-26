@@ -45,7 +45,7 @@ namespace LightLag
         }
 
         /// <summary>
-        /// Seconds until a command sent now reaches the vessel (doubled with round-trip delay).
+        /// Seconds until a command sent now reaches the vessel: one way, along the control path.
         /// 0 when delay doesn't apply (including no signal with "Require Signal for Control" off),
         /// <see cref="double.PositiveInfinity"/> when there's no connection and a signal is required.
         /// </summary>
@@ -57,8 +57,7 @@ namespace LightLag
 
             double meters = PathLength(connection.ControlPath);
             LightLagParams settings = LightLagParams.Current;
-            double delay = meters / (SpeedOfLight * settings.lightSpeedMultiplier);
-            return settings.roundTrip ? 2.0 * delay : delay;
+            return meters / (SpeedOfLight * settings.lightSpeedMultiplier);
         }
 
         /// <summary>Sum of the link lengths along a CommNet path, in meters.</summary>

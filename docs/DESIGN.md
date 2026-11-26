@@ -33,8 +33,7 @@ The background research is in `../COMMNET_RT_FEASIBILITY.md` and the repo plan i
 
 ## 3. Delay math
 
-- **One way:** delay = Σ over the links of `ControlPath` of |a.position − b.position| ÷ (c × `lightSpeedMultiplier`), with c = 299,792,458 m/s. The path runs to the nearest control source, which CommNet already picks through `FindClosestControlSource`.
-- **Round trip:** `roundTrip` doubles it.
+- **Delay:** one way, Σ over the links of `ControlPath` of |a.position − b.position| ÷ (c × `lightSpeedMultiplier`), with c = 299,792,458 m/s. The path runs to the nearest control source, which CommNet already picks through `FindClosestControlSource`.
 - **No connection:** with stock's "Require Signal for Control" on, the delay is infinite and nothing new can be sent. With it off, no delay applies.
 - **Local control:** the delay is 0.
 
@@ -95,7 +94,7 @@ Part commands save their target as the part's `persistentId` plus the module's i
 | # | Question | Status |
 |---|---|---|
 | 1 | Name | Decided: LightLag |
-| 2 | One-way or round-trip delay | Decided: one way by default, with round trip as a setting |
+| 2 | One-way or round-trip delay | Decided: one way only. A round-trip setting existed early on and was removed: it only doubled the number and confused what the delay means |
 | 3 | Do commands already sent still arrive after signal loss? | Decided: yes, for steering and throttle (M1) and for discrete commands (M2) |
 | 4 | Which part-menu actions are exempt? | Decided (M3): our own analysis, in `PART_MENUS.md`. Every button and control on the active vessel's part menus is delayed unless it doesn't command the vessel: your viewpoint (Control From Here, camera), windows and readouts (Review Data, KerbNet, mod windows), names, targets and tallies, and cosmetics. Crew transfer, Level Up Crew and construction settings (autostrut, rigid attachment, symmetry) are delayed. These are listed in `Rules/*.cfg` (a file per mod; any mod can add a `LIGHTLAG_EXEMPTIONS` node); RemoteTech's `skip_delay`/`skip_control` markers are honored too. RemoteTech's own list (renaming, crew transfer, camera) was the starting point, but it delays viewpoint and window buttons |
 | 5 | Control with no signal | Decided: follow stock's "Require Signal for Control". **On:** nothing new is sent; input and commands already sent still arrive, then the stick centers and the throttle is cut or held. Stock already gives an uncrewed probe no control without a signal, so this matches it. **Off:** delay doesn't apply, so what stock's partial control allows (staging, action groups, SAS, RCS) acts at once; input still in flight is dropped, and queued commands still run when due |

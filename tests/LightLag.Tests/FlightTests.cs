@@ -66,7 +66,6 @@ namespace LightLag.Tests
                 var getDelay = (Func<Vessel, double>)Delegate.CreateDelegate(typeof(Func<Vessel, double>), service.GetMethod("GetDelay"));
                 object settings = HighLogic.CurrentGame.Parameters.CustomParams(paramsType);
                 FieldInfo multiplier = paramsType.GetField("lightSpeedMultiplier");
-                FieldInfo roundTrip = paramsType.GetField("roundTrip");
                 FieldInfo enabled = paramsType.GetField("delayEnabled");
 
                 Vessel v = FlightGlobals.ActiveVessel;
@@ -79,20 +78,18 @@ namespace LightLag.Tests
 
                 // 1. The delay LightLag reports matches the control path's length.
                 double meters = v.connection.ControlPath.Sum(l => (l.a.position - l.b.position).magnitude);
-                double expected = meters / (C * (float)multiplier.GetValue(settings)) * ((bool)roundTrip.GetValue(settings) ? 2.0 : 1.0);
+                double expected = meters / (C * (float)multiplier.GetValue(settings));
                 double actual = getDelay(v);
                 bool match = Math.Abs(actual - expected) <= 1e-6 * Math.Max(1.0, expected);
                 Result(match ? "PASS" : "FAIL", "delay matches the control path",
                     $"path {meters:0} m over {v.connection.ControlPath.Count} links, expected {expected:0.000000} s, got {actual:0.000000} s");
 
                 float savedMultiplier = (float)multiplier.GetValue(settings);
-                bool savedRoundTrip = (bool)roundTrip.GetValue(settings);
                 bool savedEnabled = (bool)enabled.GetValue(settings);
                 float savedThrottle = FlightInputHandler.state.mainThrottle;
                 try
                 {
                     // Aim for about 2 s of delay, within the setting's range.
-                    roundTrip.SetValue(settings, false);
                     float m = Mathf.Clamp((float)(meters / (C * 2.0)), 0.01f, 100f);
                     multiplier.SetValue(settings, m);
                     yield return new WaitForFixedUpdate();
@@ -151,7 +148,6 @@ namespace LightLag.Tests
                 {
                     FlightInputHandler.state.mainThrottle = savedThrottle;
                     multiplier.SetValue(settings, savedMultiplier);
-                    roundTrip.SetValue(settings, savedRoundTrip);
                     enabled.SetValue(settings, savedEnabled);
                 }
             }
