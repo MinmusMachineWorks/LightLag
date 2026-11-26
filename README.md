@@ -40,7 +40,7 @@ The stock throttle gauge shows the throttle you commanded; the vessel follows it
 
 Staging, action groups (custom 1–10, abort, gear, lights, brakes), SAS and RCS toggles, SAS modes and the active vessel's part menus (buttons such as Extend or Deploy, and toggles, sliders and other controls) don't act at once on a vessel with delay. They're queued and run when the signal arrives. With no signal they aren't sent at all, unless "Require Signal for Control" is off; then they act at once. Without a signal, stock gives an uncrewed probe no control at all ("No Telemetry"), so with "Require Signal for Control" on, every key simply does nothing before LightLag sees it.
 
-The **flight computer** (click the delay on the signal bar) shows the active vessel's signal and queue:
+The **flight computer** (click the delay on the signal bar) shows the active vessel's signal and queue. It follows KSP's UI scale and app scale settings, like the stock app windows:
 - **Signal:** the delay, and the control path hop by hop: each relay or station, how far, and its share of the delay.
 - **Stick and throttle:** how long until the last of your stick and throttle input arrives. It can't be cancelled.
 - **Countdowns:** when each command arrives and when it runs.

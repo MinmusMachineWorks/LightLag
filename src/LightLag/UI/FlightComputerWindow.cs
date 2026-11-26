@@ -11,7 +11,7 @@ namespace LightLag
     /// path hop by hop, whether stick and throttle input is still arriving and until when (it
     /// can't be cancelled), the vessel's extra delay, and each queued command with its countdown
     /// and a cancel button (the cancel is itself a signal, so it's allowed only if it can arrive
-    /// before the command runs). Drawn with IMGUI in KSP's skin.
+    /// before the command runs). Drawn with IMGUI in KSP's skin, scaled by KSP's UI and app scale.
     /// </summary>
     internal class FlightComputerWindow
     {
@@ -49,11 +49,19 @@ namespace LightLag
                 _extraText = module.ExtraDelay.ToString("0.###", CultureInfo.InvariantCulture);
             }
 
+            // IMGUI ignores KSP's UI scale, so scale the whole window by it, as an app window
+            // (UI scale × app scale). The rect is in unscaled units; keep it on screen.
+            float scale = Mathf.Clamp(GameSettings.UI_SCALE * GameSettings.UI_SCALE_APPS, 0.5f, 4f);
+            Matrix4x4 savedMatrix = GUI.matrix;
+            GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
             GUISkin saved = GUI.skin;
             GUI.skin = HighLogic.Skin;
             _rect = GUILayout.Window(WindowId, _rect, id => Contents(vessel, module),
                 Localizer.Format("#LightLag_Queue_Title", vessel.vesselName), GUILayout.Width(380));
             GUI.skin = saved;
+            GUI.matrix = savedMatrix;
+            _rect.x = Mathf.Clamp(_rect.x, 0f, Mathf.Max(0f, Screen.width / scale - _rect.width));
+            _rect.y = Mathf.Clamp(_rect.y, 0f, Mathf.Max(0f, Screen.height / scale - _rect.height));
 
             // Typing in the extra delay field mustn't stage the vessel or toggle its groups.
             if (GUI.GetNameOfFocusedControl() == ExtraDelayControl)
