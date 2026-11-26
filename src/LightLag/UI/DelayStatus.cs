@@ -19,7 +19,7 @@ namespace LightLag
             return double.IsInfinity(delay) ? State.NoSignal : State.Delay;
         }
 
-        /// <summary>Short text for the signal bar: "2.31 s", "No signal", plus the queued count. Null when delay is off.</summary>
+        /// <summary>Short text for the signal bar: "2.31 s", "Local", plus the queued count. Null when delay is off.</summary>
         internal static string Short(Vessel vessel)
         {
             State state = Of(vessel, out double delay);
@@ -29,7 +29,7 @@ namespace LightLag
                 case State.Off: return null;
                 case State.Local: text = Localizer.Format("#LightLag_Bar_Local"); break;
                 case State.NoSignalNotRequired: text = Localizer.Format("#LightLag_Bar_NoDelay"); break;
-                case State.NoSignal: text = Localizer.Format("#LightLag_Bar_NoSignal"); break;
+                case State.NoSignal: return null;
                 default: text = DelayService.Format(delay); break;
             }
             int queued = LightLagVessel.For(vessel)?.Queue.Count ?? 0;

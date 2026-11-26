@@ -28,7 +28,7 @@ The settings are under **Difficulty → Advanced**, next to stock CommNet's:
 
 The delay is part of the stock signal bar at the top left: a stopwatch icon after CommNet's signal icons, then the active vessel's state, in flight and in map view. The stopwatch is the flight computer button; hover it for the details, and click it to open the **flight computer**:
 - **2.31 s** (or **2.31 s · 2 queued**): the delay, and how many commands are queued. The tooltip also says whether stick and throttle input you gave is still on its way.
-- **No signal** (in red): stock's "Require Signal for Control" is on, so stock locks every control, and LightLag sends nothing new. Input already sent still arrives; then the stick centers, and the throttle is cut or held per the setting.
+- **No signal:** the readout is hidden, and stock's red control icon ("No probe control") shows it instead; an open flight computer stays open. Stock's "Require Signal for Control" is on, so stock locks every control, and LightLag sends nothing new. Input already sent still arrives; then the stick centers, and the throttle is cut or held per the setting.
 - **No delay** (no signal, none required): "Require Signal for Control" is off, so stock gives the vessel partial control without a signal, and there's no path to delay along. What stock allows (staging, action groups, SAS and RCS) acts at once; stock still locks the stick, throttle and translation.
 - **Local:** crew aboard, or an EVA kerbal. No delay.
 

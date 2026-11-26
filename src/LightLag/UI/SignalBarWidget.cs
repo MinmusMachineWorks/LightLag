@@ -11,8 +11,9 @@ namespace LightLag
     /// <summary>
     /// The delay readout in the stock signal bar: one more item in CommNet's row of signal
     /// icons (<see cref="TelemetryUpdate"/>), in flight and in map view alike. It's a stopwatch
-    /// icon (the flight computer button) and the active vessel's delay ("2.31 s", "No signal",
-    /// "Local"), plus how many commands are queued. The row lays its icons out itself (it grows
+    /// icon (the flight computer button) and the active vessel's delay ("2.31 s", "Local",
+    /// "No delay"), plus how many commands are queued. With no signal it's hidden: stock's red
+    /// control icon says so already. The row lays its icons out itself (it grows
     /// when stock shows the globe button), so the readout joins that layout and the panel's own
     /// background takes it in. If the row has no layout group, the readout is placed after the
     /// last icon and the background widened by hand. Its text copies the MET display; its
@@ -24,7 +25,6 @@ namespace LightLag
     public class SignalBarWidget : MonoBehaviour
     {
         private const float Spacing = 4f, UpdateSeconds = 0.1f;
-        private static readonly Color NoSignalColor = new Color(1f, 0.45f, 0.4f);
         private static bool _dumped;
 
         private readonly FlightComputerWindow _window = new FlightComputerWindow();
@@ -176,26 +176,25 @@ namespace LightLag
             if (_root == null || Time.unscaledTime < _nextUpdate) return;
             _nextUpdate = Time.unscaledTime + UpdateSeconds;
 
+            // Without a signal, stock's red "no control" icon already says it all, so the readout
+            // steps aside. An open flight computer stays open: input already sent still arrives.
             Vessel vessel = FlightGlobals.ActiveVessel;
-            string text = DelayStatus.Short(vessel);
+            DelayStatus.State state = DelayStatus.Of(vessel, out _);
+            string text = state == DelayStatus.State.NoSignal ? null : DelayStatus.Short(vessel);
             if (_root.activeSelf != (text != null))
             {
                 _root.SetActive(text != null);
                 if (text == null) Widen(0f);
                 _shown = null;
             }
-            if (text == null)
-            {
-                _window.Close();
-                return;
-            }
+            if (state == DelayStatus.State.Off) _window.Close();
+            if (text == null) return;
             if (text != _shown)
             {
                 _shown = text;
                 _text.text = text;
                 if (!_inLayout) PlaceByHand();
             }
-            _text.color = DelayStatus.Of(vessel, out _) == DelayStatus.State.NoSignal ? NoSignalColor : _textColor;
             _tooltip?.SetText(DelayStatus.Long(vessel) + "\n" + Localizer.Format("#LightLag_Bar_Tooltip"));
         }
 
