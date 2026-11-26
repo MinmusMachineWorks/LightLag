@@ -12,8 +12,10 @@ namespace LightLag
     /// The delay readout in the stock signal bar: one more item in CommNet's row of signal
     /// icons (<see cref="TelemetryUpdate"/>), in flight and in map view alike. It's a stopwatch
     /// icon (the flight computer button) and the active vessel's delay ("2.31 s", "Local",
-    /// "No delay"), plus how many commands are queued. With no signal it's hidden: stock's red
-    /// control icon says so already. The row lays its icons out itself (it grows
+    /// "No delay"), plus how many commands are queued. With no signal the stopwatch stays, grey
+    /// and without text (stock's red control icon says why), so the flight computer can still be
+    /// opened; meanwhile it runs the <see cref="ContactPredictor"/>, whose estimate is in the
+    /// tooltip and the flight computer. The row lays its icons out itself (it grows
     /// when stock shows the globe button), so the readout joins that layout and the panel's own
     /// background takes it in. If the row has no layout group, the readout is placed after the
     /// last icon and the background widened by hand. Its text copies the MET display; its
@@ -27,7 +29,11 @@ namespace LightLag
         private const float Spacing = 4f, UpdateSeconds = 0.1f;
         private static bool _dumped;
 
+        private static readonly Color SignalColor = new Color(0.45f, 1f, 0.3f), NoSignalColor = new Color(0.55f, 0.55f, 0.55f);
+
         private FlightComputerPanel _window;
+        private readonly ContactPredictor _contact = new ContactPredictor();
+        private Image _icon;
         private GameObject _root;
         private RectTransform _rootRect, _row, _background;
         private TextMeshProUGUI _text;
@@ -36,7 +42,7 @@ namespace LightLag
         private float _height, _widened, _nextUpdate;
         private bool _inLayout;
         private string _shown;
-        private static Sprite _icon;
+        private static Sprite _sprite;
 
         public void Start()
         {
@@ -133,7 +139,8 @@ namespace LightLag
             _text.fontSize = Mathf.Round(_height * 0.6f);
             _text.color = _textColor;
             // The stock icons are green; the stopwatch matches them.
-            icon.color = new Color(0.45f, 1f, 0.3f);
+            icon.color = SignalColor;
+            _icon = icon;
 
             Button button = _root.AddComponent<Button>();
             button.targetGraphic = icon;
@@ -168,30 +175,43 @@ namespace LightLag
         {
             if (_root == null) return;
             _window.UpdateLock();
+            Vessel vessel = FlightGlobals.ActiveVessel;
+            DelayStatus.State state = DelayStatus.Of(vessel, out _);
+            if (state == DelayStatus.State.NoSignal) _contact.Update(vessel);
+            else _contact.Reset();
             if (Time.unscaledTime < _nextUpdate) return;
             _nextUpdate = Time.unscaledTime + UpdateSeconds;
 
-            // Without a signal, stock's red "no control" icon already says it all, so the readout
-            // steps aside. An open flight computer stays open: input already sent still arrives.
-            Vessel vessel = FlightGlobals.ActiveVessel;
-            DelayStatus.State state = DelayStatus.Of(vessel, out _);
-            string text = state == DelayStatus.State.NoSignal ? null : DelayStatus.Short(vessel);
-            if (_root.activeSelf != (text != null))
+            // Without a signal, stock's red "no control" icon already says so: the stopwatch
+            // stays, greyed and without text, as the flight computer button.
+            bool off = state == DelayStatus.State.Off;
+            if (_root.activeSelf == off)
             {
-                _root.SetActive(text != null);
-                if (text == null) Widen(0f);
+                _root.SetActive(!off);
+                if (off) Widen(0f);
                 _shown = null;
             }
-            if (state == DelayStatus.State.Off) _window.Close();
-            else _window.Refresh(vessel);
-            if (text == null) return;
+            if (off)
+            {
+                _window.Close();
+                return;
+            }
+            _window.Refresh(vessel, _contact);
+
+            bool noSignal = state == DelayStatus.State.NoSignal;
+            string text = noSignal ? "" : DelayStatus.Short(vessel);
             if (text != _shown)
             {
                 _shown = text;
                 _text.text = text;
+                _text.gameObject.SetActive(!noSignal);
+                _icon.color = noSignal ? NoSignalColor : SignalColor;
                 if (!_inLayout) PlaceByHand();
             }
-            _tooltip?.SetText(DelayStatus.Long(vessel) + "\n" + Localizer.Format("#LightLag_Bar_Tooltip"));
+            string tooltip = DelayStatus.Long(vessel);
+            string contact = noSignal ? FlightComputerPanel.ContactText(_contact) : null;
+            if (!string.IsNullOrEmpty(contact)) tooltip += "\n" + contact;
+            _tooltip?.SetText(tooltip + "\n" + Localizer.Format("#LightLag_Bar_Tooltip"));
         }
 
         /// <summary>Without a layout group: after the rightmost active icon, with the background widened to match.</summary>
@@ -251,7 +271,7 @@ namespace LightLag
         /// <summary>A stopwatch: the flight computer's icon, drawn once in white so the Image tints it.</summary>
         private static Sprite Icon()
         {
-            if (_icon != null) return _icon;
+            if (_sprite != null) return _sprite;
             const int size = 64;
             var texture = new Texture2D(size, size, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
             var center = new Vector2(size / 2f, size / 2f - 3f);
@@ -270,8 +290,8 @@ namespace LightLag
                 texture.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
             }
             texture.Apply();
-            _icon = Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f));
-            return _icon;
+            _sprite = Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f));
+            return _sprite;
         }
 
         private static float Segment(Vector2 p, Vector2 a, Vector2 b, float halfWidth)

@@ -84,6 +84,9 @@ namespace LightLag.Tests
                 Result(match ? "PASS" : "FAIL", "delay matches the control path",
                     $"path {meters:0} m over {v.connection.ControlPath.Count} links, expected {expected:0.000000} s, got {actual:0.000000} s");
 
+                // 2. The next-contact model sees the same network CommNet does right now.
+                ModelTest(mod, v);
+
                 float savedMultiplier = (float)multiplier.GetValue(settings);
                 bool savedEnabled = (bool)enabled.GetValue(settings);
                 float savedThrottle = FlightInputHandler.state.mainThrottle;
@@ -96,7 +99,7 @@ namespace LightLag.Tests
                     double delay = getDelay(v);
                     if (delay < 0.5)
                     {
-                        foreach (string name in TestNames.Skip(1))
+                        foreach (string name in TestNames.Skip(2))
                             Result("SKIP", name, $"delay only {delay:0.000} s even at multiplier {m}; move farther from the control source");
                         yield break;
                     }
@@ -160,12 +163,29 @@ namespace LightLag.Tests
 
         private static readonly string[] TestNames =
         {
-            "delay matches the control path", "no phantom input when delay starts", "throttle arrives after the delay",
+            "delay matches the control path", "next-contact model agrees with CommNet", "no phantom input when delay starts", "throttle arrives after the delay",
             "non-player commands are instant",
             "SAS mode click arrives after the delay", "queued command is saved", "part-menu button arrives after the delay",
             "science dialog Discard arrives after the delay",
             "window button arrives after the delay",
         };
+
+        /// <summary>
+        /// LightLag's next-contact model, run at the current time, must see a path from the
+        /// connected vessel and put every node within 1 km of CommNet's own position for it.
+        /// </summary>
+        private void ModelTest(Assembly mod, Vessel v)
+        {
+            const string name = "next-contact model agrees with CommNet";
+            MethodInfo check = mod.GetType("LightLag.ContactPredictor")?.GetMethod("ModelCheck", BindingFlags.NonPublic | BindingFlags.Static);
+            if (check == null) { Result("FAIL", name, "ContactPredictor.ModelCheck not found"); return; }
+            object[] args = { v, false };
+            double error = (double)check.Invoke(null, args);
+            bool connected = (bool)args[1];
+            if (double.IsNaN(error)) { Result("SKIP", name, $"no model for {CommNetNetwork.Instance?.CommNet?.GetType().FullName}"); return; }
+            bool ok = connected && error < 1000.0;
+            Result(ok ? "PASS" : "FAIL", name, $"model {(connected ? "sees" : "doesn't see")} a path; worst node position error {error:0} m");
+        }
 
         private IEnumerator PartEventTest(Vessel v, Assembly mod, double delay)
         {

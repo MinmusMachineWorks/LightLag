@@ -74,7 +74,7 @@ namespace LightLag
             return meters;
         }
 
-        /// <summary>"0.42 s", "12.3 s", "4m 05s", "1h 02m", or "∞".</summary>
+        /// <summary>"0.42 s", "12.3 s", "4m 05s", "1h 02m", "3d 04h" (in the game's days), or "∞".</summary>
         public static string Format(double seconds)
         {
             if (double.IsInfinity(seconds) || double.IsNaN(seconds)) return "∞";
@@ -85,8 +85,12 @@ namespace LightLag
                 int s = (int)seconds;
                 return $"{s / 60}m {s % 60:00}s";
             }
-            int m = (int)(seconds / 60.0);
-            return $"{m / 60}h {m % 60:00}m";
+            long m = (long)(seconds / 60.0);
+            long day = KSPUtil.dateTimeFormatter.Day;
+            if (day <= 0 || seconds < day) return $"{m / 60}h {m % 60:00}m";
+            long h = (long)(seconds / 3600.0);
+            long hoursPerDay = day / 3600;
+            return $"{(long)(seconds / day)}d {h % hoursPerDay:00}h";
         }
     }
 }

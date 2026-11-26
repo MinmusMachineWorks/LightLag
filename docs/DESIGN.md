@@ -21,21 +21,31 @@ The background research is in `../COMMNET_RT_FEASIBILITY.md` and the repo plan i
 | Delay | `DelayService` (done): per-vessel delay from `ControlPath`, computed on each call (a few links, cheap); `LocalControl` (done) | M1 |
 | Steering and throttle | `FlyByWireDelay` (done): queue the player's `ctrlState` with an arrival time, replay it after the delay. Owned by `LightLagVessel` (done), a plain VesselModule on loaded vessels | M1 |
 | Signal loss | `SignalLoss` (done): input already sent still arrives; then the stick centers and the throttle is cut or held. Only while stock's "Require Signal for Control" is on (`DelayService.SignalRequired`) | M1 |
-| Readout | `SignalBarWidget` (done): a stopwatch icon and the delay as one more item in CommNet's signal icon row (`TelemetryUpdate`), so it's there in flight and map view; text styled from the MET display, with the stock tooltip | M1 |
+| Readout | `SignalBarWidget` (done): a stopwatch icon and the delay as one more item in CommNet's signal icon row (`TelemetryUpdate`), so it's there in flight and map view; text styled from the MET display, with the stock tooltip. With no signal, just the stopwatch, grey, so the flight computer can still be opened | M1 |
+| Next contact | `ContactPredictor` (done, stock CommNet only): with no signal, when the vessel is expected to get one, and through which station or vessel. See §3 | M2 |
 | Player context | `PlayerInput` (done): a depth counter that Harmony sets around the player's entry points, `FlightInputHandler.Update`, `ActionGroupToggleButton.SetToggle` and `VesselAutopilotUI.OnClickButton` | M2 |
 | Discrete hooks | `CommandHooks` (done): prefixes on `StageManager.ActivateNextStage`, `ActionGroupList.ToggleGroup` and `SetGroup`, and `VesselAutopilot.SetMode`. They queue a command only in player context | M2 |
 | Queue | `CommandQueue` (done) and `QueuedCommand` with `StageCommand`, `ActionGroupCommand` and `SasModeCommand` (done), held and run by `LightLagVessel` | M2 |
-| Flight computer | `FlightComputerPanel` (done): uGUI "mission console" (black glass, monospace, signal green, amber for what's on its way) opened from the readout; control path hop by hop, input in flight, queue with countdowns and abort, extra delay | M2 |
+| Flight computer | `FlightComputerPanel` (done): uGUI "mission console" (black glass, monospace, signal green, amber for what's on its way) opened from the readout; control path hop by hop (with no signal, the next contact instead), input in flight, queue with countdowns and abort, extra delay | M2 |
 | Time warp | `WarpGuard` (done): drops on-rails warp to 1× before a queued command runs | M2 |
 | Part menus | `PartMenuHooks` (done): `BaseEvent.Invoke` inside `UIPartActionButton.OnClick`, and `UIPartActionFieldItem.SetFieldValue`, → `PartEventCommand` and `PartFieldCommand`; `ScienceHooks` wraps the science results dialog's callbacks → `ScienceCommand`; `Windows`/`WindowHooks` delay window buttons listed in `LIGHTLAG_WINDOW` nodes → `MethodCommand`; `Exemptions` reads `LIGHTLAG_EXEMPTIONS` nodes and RemoteTech's `skip_delay`/`skip_control` categories | M3 |
 | API | `LightLagAPI` | M4 |
-| RealAntennas adapter | `LightLag.RealAntennas.dll` with `[KSPAssemblyDependency("RealAntennas")]`; strength rules from `RACommLink` data rates | M5 |
+| RealAntennas adapter | `LightLag.RealAntennas.dll` with `[KSPAssemblyDependency("RealAntennas")]`; strength rules from `RACommLink` data rates; a next-contact model (Q9) | M5 |
 
 ## 3. Delay math
 
 - **Delay:** one way, Σ over the links of `ControlPath` of |a.position − b.position| ÷ (c × `lightSpeedMultiplier`), with c = 299,792,458 m/s. The path runs to the nearest control source, which CommNet already picks through `FindClosestControlSource`.
 - **No connection:** with stock's "Require Signal for Control" on, the delay is infinite and nothing new can be sent. With it off, no delay applies.
 - **Local control:** the delay is 0.
+
+### Next contact
+
+CommNet only knows who can reach whom right now; nothing in KSP looks ahead. `ContactPredictor` does, for the active vessel while it has no signal:
+- **Model:** stock CommNet's link rules at future positions. Every node keeps the antenna powers CommNet gave it now. A link needs `CommNetScenario.RangeModel.InRange` for one of the relay/transmit power pairs, and no body within radius × `scaledRadiusHorizonMultiplier` × CommNet's occlusion multiplier (vacuum or atmosphere) of the line, like stock's horizon culling but as a sphere. A path goes through nodes with relay power and ends at a control source (`isControlSource`; one that isn't multi-hop only directly).
+- **Where things will be:** vessels in flight on their current orbit (`Orbit.getTruePositionAtUT`); landed vessels and ground stations at their latitude, longitude and altitude, turned with the body (`360° × Δt / rotationPeriod` of longitude), plus the body's own `getTruePositionAtUT`.
+- **Search:** 600 samples up to a horizon of two orbits (or two of the body's days when landed), between an hour and 50 game days, and no later than the end of the orbit patch (SOI change, maneuver). 40 samples a frame; then bisection to about a second. It restarts every 5 s of real time and keeps the last answer meanwhile. A window shorter than the sample step can be missed.
+- **Not modelled:** burns, staging, plasma blackout, power running out. If the model sees a path now while CommNet doesn't, something outside it cuts the signal (plasma, say), so there's no estimate.
+- **Self-check:** `ContactPredictor.ModelCheck` runs the model at the current time; the harness checks it agrees with CommNet for a connected vessel.
 
 ## 4. Public API (M4; sketch)
 
@@ -100,6 +110,7 @@ Part commands save their target as the part's `persistentId` plus the module's i
 | 5 | Control with no signal | Decided: follow stock's "Require Signal for Control". **On:** nothing new is sent; input and commands already sent still arrive, then the stick centers and the throttle is cut or held. Stock already gives an uncrewed probe no control without a signal, so this matches it. **Off:** delay doesn't apply, so what stock's partial control allows (staging, action groups, SAS, RCS) acts at once; input still in flight is dropped, and queued commands still run when due |
 | 6 | Commands for unloaded vessels | Decided (M2): kept in the save; overdue ones run in order on load, with a message |
 | 7 | Which calls count as the player's? | Decided (M2): only those made inside `FlightInputHandler.Update`, `ActionGroupToggleButton.SetToggle`, `VesselAutopilotUI.OnClickButton` and (M3) `UIPartActionButton.OnClick`, plus part-menu controls' `SetFieldValue` and the science results dialog's Transmit, Discard and Lab callbacks (only its buttons call them), and the entry methods of windows in `LIGHTLAG_WINDOW` nodes. KSP's and other mods' calls stay instant |
+| 9 | Next contact on RealAntennas | Open (M5). `ContactPredictor` reports "no estimate" on any network that isn't stock `CommNetwork`, since RealAntennas' links are a link budget (power, gain, pointing, noise, encoding), not stock's range formula. What RealAntennas offers (read 2026-11-25, `4628e68`): its link math runs in `Precompute.Precompute` (public: `Initialize(nodes)`, `DoThings(bodies, nodes, forceValid)`, `SimulateComplete(ref ConnectionDebugger, nodes)`), and its planner window already runs it on made-up nodes without making links. But it reads the present from live objects: node `precisePosition` (settable), occluders from `body.position` (not), and dish pointing from `RealAntenna.ToTarget` (the target's transform now). So it can't be pointed at a future time from outside. **Options:** (a) a small upstream API in RealAntennas that takes body positions and antenna directions as input, or evaluates the network at a given UT; (b) in the adapter, our own link budget built on its public `Physics` functions (`ReceivedPower`, `PointingLoss`, `NoiseTemperature`) and each antenna's encoder, with our geometry and pointing at the future time; (c) occlusion only, labelled as a best case. (a) is the most faithful; (b) is the fallback. Don't copy RealAntennas code into LightLag either way |
 | 8 | How is stick and throttle input in flight shown? | Decided: as one indicator, not a list or a count. Holding a key sends a stream of small changes, so a count means nothing; the readout says "input arriving" and the flight computer says how long until the last of it lands. Only discrete commands are listed, and only they can be cancelled |
 
 ## 7. Gotchas

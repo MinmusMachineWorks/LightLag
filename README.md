@@ -28,7 +28,7 @@ The settings are under **Difficulty → Advanced**, next to stock CommNet's:
 
 The delay is part of the stock signal bar at the top left: a stopwatch icon after CommNet's signal icons, then the active vessel's state, in flight and in map view. The stopwatch is the flight computer button; hover it for the details, and click it to open the **flight computer**:
 - **2.31 s** (or **2.31 s · 2 queued**): the delay, and how many commands are queued. The tooltip also says whether stick and throttle input you gave is still on its way.
-- **No signal:** the readout is hidden, and stock's red control icon ("No probe control") shows it instead; an open flight computer stays open. Stock's "Require Signal for Control" is on, so stock locks every control, and LightLag sends nothing new. Input already sent still arrives; then the stick centers, and the throttle is cut or held per the setting.
+- **No signal:** just the stopwatch, grey, with no text; stock's red control icon ("No probe control") says why. It still opens the flight computer, and its tooltip gives the next contact (below). Stock's "Require Signal for Control" is on, so stock locks every control, and LightLag sends nothing new. Input already sent still arrives; then the stick centers, and the throttle is cut or held per the setting.
 - **No delay** (no signal, none required): "Require Signal for Control" is off, so stock gives the vessel partial control without a signal, and there's no path to delay along. What stock allows (staging, action groups, SAS and RCS) acts at once; stock still locks the stick, throttle and translation.
 - **Local:** crew aboard, or an EVA kerbal. No delay.
 
@@ -42,6 +42,7 @@ Staging, action groups (custom 1–10, abort, gear, lights, brakes), SAS and RCS
 
 The **flight computer** (click the stopwatch on the signal bar) is LightLag's console for the active vessel: black glass, signal green, and amber for what's still on its way. Drag it by its title; it follows KSP's UI and app scale and hides with the UI (F2):
 - **Signal:** the delay, and the control path hop by hop: each relay or station, how far, and its share of the delay.
+- **Next contact:** with no signal, when the vessel should get one back, and through which station or relay ("Next contact in about 12m 30s, via …"), or that none is expected within the search (two orbits, or two days when landed, up to 50 days). It's an estimate: it assumes everything coasts on its current orbit, with no burns or staging, and leaves out plasma blackout and power running out. It needs stock CommNet; with RealAntennas there's no estimate yet.
 - **Stick and throttle:** how long until the last of your stick and throttle input arrives. It can't be cancelled.
 - **Countdowns:** when each command arrives and when it runs.
 - **Abort:** an abort is a signal too, so it's allowed only if it can reach the vessel before the command runs.

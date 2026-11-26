@@ -19,7 +19,8 @@ namespace LightLag
     /// hides with the UI (F2), and takes clicks over it. Opened from the signal bar
     /// (<see cref="SignalBarWidget"/>), which also drives <see cref="Refresh"/>.
     ///
-    /// Shows the delay and the control path hop by hop, whether stick and throttle input is
+    /// Shows the delay and the control path hop by hop (with no signal, the estimated next
+    /// contact from <see cref="ContactPredictor"/> instead), whether stick and throttle input is
     /// still arriving and until when (it can't be cancelled), each queued command with its
     /// countdown and an abort button (an abort is itself a signal, so it's allowed only if it can
     /// arrive before the command runs), and the vessel's extra delay.
@@ -47,7 +48,7 @@ namespace LightLag
         private readonly Tooltip_Text _tooltipPrefab;
         private GameObject _root;
         private RectTransform _rect;
-        private TextMeshProUGUI _title, _queued, _delay, _path, _distance, _input, _empty;
+        private TextMeshProUGUI _title, _queued, _delay, _contact, _path, _distance, _input, _empty;
         private RectTransform _rows;
         private TMP_InputField _extra;
         private readonly Dictionary<QueuedCommand, Row> _rowFor = new Dictionary<QueuedCommand, Row>();
@@ -76,7 +77,7 @@ namespace LightLag
             _root.SetActive(true);
             _rect.SetAsLastSibling();
             _vesselId = Guid.Empty;
-            Refresh(FlightGlobals.ActiveVessel);
+            Refresh(FlightGlobals.ActiveVessel, null);
         }
 
         public void Close()
@@ -101,7 +102,7 @@ namespace LightLag
                 InputLockManager.RemoveControlLock(InputLock);
         }
 
-        public void Refresh(Vessel vessel)
+        public void Refresh(Vessel vessel, ContactPredictor contact)
         {
             if (!Visible) return;
             LightLagVessel module = LightLagVessel.For(vessel);
@@ -139,6 +140,7 @@ namespace LightLag
                     break;
             }
             SetPath(vessel, state == DelayStatus.State.Delay);
+            SetContact(state == DelayStatus.State.NoSignal ? contact : null);
 
             // Stick and throttle are analog: holding a key sends a stream of changes, so they're
             // one line (still arriving, and until when), not a list of commands.
@@ -150,6 +152,40 @@ namespace LightLag
 
             RefreshRows(vessel, module, now, double.IsInfinity(delay) ? double.PositiveInfinity : delay);
             _empty.gameObject.SetActive(queued == 0);
+        }
+
+        /// <summary>
+        /// The next-contact estimate, for the flight computer and the signal bar's tooltip:
+        /// when, and through which station or vessel; or that none is expected within the
+        /// search; or that it's still looking. Null when there's nothing to say.
+        /// </summary>
+        internal static string ContactText(ContactPredictor contact)
+        {
+            if (contact == null) return null;
+            switch (contact.Result)
+            {
+                case ContactPredictor.Status.Found:
+                    double wait = Math.Max(0, contact.ContactUT - Planetarium.GetUniversalTime());
+                    return Localizer.Format("#LightLag_Contact_Found", DelayService.Format(wait), contact.Via);
+                case ContactPredictor.Status.NotFound:
+                    return Localizer.Format("#LightLag_Contact_NotFound", DelayService.Format(contact.Horizon));
+                case ContactPredictor.Status.Unsupported:
+                    return Localizer.Format("#LightLag_Contact_Unsupported");
+                default:
+                    return contact.Searching ? Localizer.Format("#LightLag_Contact_Searching") : null;
+            }
+        }
+
+        private void SetContact(ContactPredictor contact)
+        {
+            string text = ContactText(contact);
+            _contact.gameObject.SetActive(text != null);
+            if (text == null) return;
+            _contact.text = text;
+            // The path lines are hidden without a signal; the distance line carries the caveat.
+            bool estimate = contact.Result == ContactPredictor.Status.Found || contact.Result == ContactPredictor.Status.NotFound;
+            _distance.gameObject.SetActive(estimate);
+            if (estimate) _distance.text = Localizer.Format("#LightLag_Contact_Caveat");
         }
 
         private void SetPath(Vessel vessel, bool show)
@@ -283,6 +319,8 @@ namespace LightLag
             Rule(glass.transform);
 
             _delay = Text("Delay", glass.transform, "", 24f, Green);
+            _contact = Text("Contact", glass.transform, "", 13f, Amber);
+            _contact.enableWordWrapping = true;
             _path = Text("Path", glass.transform, "", 13f, Green);
             _path.enableWordWrapping = true;
             _distance = Text("Distance", glass.transform, "", 11f, Dim);
