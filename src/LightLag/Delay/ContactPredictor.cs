@@ -6,7 +6,8 @@ using CommNet;
 namespace LightLag
 {
     /// <summary>
-    /// Estimates when a vessel without a signal next gets one: CommNet only knows who can reach
+    /// Estimates when the vessel's signal next changes: when a vessel without a signal gets one
+    /// (contact), or when a connected one loses it (loss). CommNet only knows who can reach
     /// whom right now, so LightLag steps forward in time and redoes the link checks itself.
     ///
     /// <para><b>Model:</b> stock CommNet's rules, applied to where everything will be. Every
@@ -20,8 +21,8 @@ namespace LightLag
     ///
     /// <para><b>Not modelled:</b> burns and staging, plasma blackout, power running out, and
     /// vessels changing sphere of influence (the search stops at the end of the vessel's orbit
-    /// patch). If the model says the vessel is connected now, something outside it (plasma,
-    /// say) is cutting the signal, so there's no estimate.</para>
+    /// patch). If the model disagrees with CommNet about now (it sees a path during plasma
+    /// blackout, say), something outside it decides the signal, so there's no estimate.</para>
     ///
     /// <para><b>Stock CommNet only.</b> In RealAntennas mode (RealAntennas loaded) it's off,
     /// and so on any other network that replaces stock's: their links follow other rules.
@@ -29,14 +30,14 @@ namespace LightLag
     ///
     /// <para><b>Search:</b> samples up to a horizon (two of the vessel's orbits or its body's
     /// days, from an hour up to 50 days), a few dozen samples per frame so it doesn't stall the
-    /// game, then bisects the first gap to the second. It starts over every few seconds of real
+    /// game, then bisects the first change to the second. It starts over every few seconds of real
     /// time, keeping the last answer until the new one is ready.</para>
     /// </summary>
     internal sealed class ContactPredictor
     {
         internal enum Status
         {
-            /// <summary>Not searched yet, or the model can't explain the current outage.</summary>
+            /// <summary>Not searched yet, or the model disagrees with CommNet about now.</summary>
             Unknown,
             /// <summary>Off: RealAntennas mode, or another CommNet the model doesn't cover. Nothing is shown.</summary>
             Off,
@@ -49,9 +50,11 @@ namespace LightLag
         private const double MinHorizon = 3600.0, MaxHorizonDays = 50.0;
 
         public Status Result { get; private set; } = Status.Unknown;
-        /// <summary>When the contact is expected (Found).</summary>
-        public double ContactUT { get; private set; }
-        /// <summary>The control source reached first (Found).</summary>
+        /// <summary>True when looking for contact (no signal now), false when looking for loss.</summary>
+        public bool Contact => !_connected;
+        /// <summary>When the signal is expected to change (Found).</summary>
+        public double ChangeUT { get; private set; }
+        /// <summary>The control source reached first, for a contact (Found).</summary>
         public string Via { get; private set; }
         /// <summary>How far ahead the search looked (NotFound).</summary>
         public double Horizon { get; private set; }
@@ -84,7 +87,7 @@ namespace LightLag
         private Node _start;
         private Guid _vesselId;
         private double _now, _end, _step, _t;
-        private bool _searching;
+        private bool _searching, _connected;
         private float _restartAt;
         private string _reachedVia;
         private static bool _loggedOff;
@@ -98,7 +101,7 @@ namespace LightLag
         private static bool Covers(CommNetwork network) => !RealAntennasMode && network.GetType() == typeof(CommNetwork);
         private Guid _loggedUnknown;
 
-        /// <summary>Clears the answer, as when the vessel has a signal again.</summary>
+        /// <summary>Clears the answer, as when delay stops applying.</summary>
         public void Reset()
         {
             Result = Status.Unknown;
@@ -107,11 +110,14 @@ namespace LightLag
             _restartAt = 0f;
         }
 
-        /// <summary>Every frame while the vessel has no signal: advances the search a little.</summary>
-        public void Update(Vessel vessel)
+        /// <summary>
+        /// Every frame while delay applies to the vessel: advances the search a little. With
+        /// <paramref name="connected"/> it looks for loss, without it for contact.
+        /// </summary>
+        public void Update(Vessel vessel, bool connected)
         {
             if (vessel == null) { Reset(); return; }
-            if (vessel.id != _vesselId) { Reset(); _vesselId = vessel.id; }
+            if (vessel.id != _vesselId || connected != _connected) { Reset(); _vesselId = vessel.id; _connected = connected; }
             if (!_searching)
             {
                 if (UnityEngine.Time.unscaledTime < _restartAt) return;
@@ -124,7 +130,7 @@ namespace LightLag
             {
                 double previous = _t;
                 _t = Math.Min(_t + _step, _end);
-                if (Connected(_t))
+                if (Connected(_t) != _connected)
                 {
                     Finish(Bisect(previous, _t));
                     return;
@@ -132,7 +138,7 @@ namespace LightLag
                 if (_t >= _end)
                 {
                     _searching = false;
-                    if (Result != Status.NotFound) Log.Info($"next contact: none in the next {DelayService.Format(_end - _now)}");
+                    if (Result != Status.NotFound) Log.Info($"{What}: none in the next {DelayService.Format(_end - _now)}");
                     Result = Status.NotFound;
                     Horizon = _end - _now;
                 }
@@ -146,8 +152,8 @@ namespace LightLag
             if (!Covers(network))
             {
                 if (!_loggedOff)
-                    Log.Info(RealAntennasMode ? "next contact: off in RealAntennas mode"
-                                              : $"next contact: off on {network.GetType().FullName}");
+                    Log.Info(RealAntennasMode ? "signal estimate: off in RealAntennas mode"
+                                              : $"signal estimate: off on {network.GetType().FullName}");
                 _loggedOff = true;
                 Result = Status.Off;
                 return;
@@ -157,11 +163,12 @@ namespace LightLag
             Snapshot(network, vessel);
             if (_start == null) { Result = Status.Unknown; return; }
 
-            // If the model already sees a path, what's cutting the signal is outside it.
-            if (Connected(_now))
+            // If the model disagrees with CommNet about now, something outside it decides the signal.
+            if (Connected(_now) != _connected)
             {
                 if (Result != Status.Unknown || _vesselId != _loggedUnknown)
-                    Log.Info($"next contact: the model sees a path to {_reachedVia} now, so something else cuts the signal; no estimate");
+                    Log.Info(_connected ? $"{What}: the model sees no path now, though CommNet does; no estimate"
+                                        : $"{What}: the model sees a path to {_reachedVia} now, so something else cuts the signal; no estimate");
                 _loggedUnknown = _vesselId;
                 Result = Status.Unknown;
                 return;
@@ -189,14 +196,17 @@ namespace LightLag
             return orbit != null && orbit.eccentricity < 1.0 ? orbit.period : 0;
         }
 
+        private string What => _connected ? "signal loss" : "next contact";
+
         private void Finish(double ut)
         {
             _searching = false;
-            bool news = Result != Status.Found || Via != _reachedVia || Math.Abs(ContactUT - ut) > 60.0;
+            string via = _connected ? null : _reachedVia;
+            bool news = Result != Status.Found || Via != via || Math.Abs(ChangeUT - ut) > 60.0;
             Result = Status.Found;
-            ContactUT = ut;
-            Via = _reachedVia;
-            if (news) Log.Info($"next contact: in {DelayService.Format(ut - _now)} via {Via} ({_nodes.Count} nodes)");
+            ChangeUT = ut;
+            Via = via;
+            if (news) Log.Info($"{What}: in {DelayService.Format(ut - _now)}{(via != null ? " via " + via : "")} ({_nodes.Count} nodes)");
         }
 
         /// <summary>
@@ -219,18 +229,18 @@ namespace LightLag
             return error;
         }
 
-        /// <summary>The first connected time in (<paramref name="off"/>, <paramref name="on"/>], to within a second or so.</summary>
-        private double Bisect(double off, double on)
+        /// <summary>The first time in (<paramref name="before"/>, <paramref name="after"/>] the signal has changed, to within a second or so.</summary>
+        private double Bisect(double before, double after)
         {
             string via = _reachedVia;
-            for (int i = 0; i < Bisections && on - off > 1.0; i++)
+            for (int i = 0; i < Bisections && after - before > 1.0; i++)
             {
-                double mid = (off + on) / 2.0;
-                if (Connected(mid)) { on = mid; via = _reachedVia; }
-                else off = mid;
+                double mid = (before + after) / 2.0;
+                if (Connected(mid) != _connected) { after = mid; via = _reachedVia; }
+                else before = mid;
             }
             _reachedVia = via;
-            return on;
+            return after;
         }
 
         // ---- the network at a moment ----

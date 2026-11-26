@@ -22,12 +22,12 @@ The background research is in `../COMMNET_RT_FEASIBILITY.md` and the repo plan i
 | Steering and throttle | `FlyByWireDelay` (done): queue the player's `ctrlState` with an arrival time, replay it after the delay. Owned by `LightLagVessel` (done), a plain VesselModule on loaded vessels | M1 |
 | Signal loss | `SignalLoss` (done): input already sent still arrives; then the stick centers and the throttle is cut or held. Only while stock's "Require Signal for Control" is on (`DelayService.SignalRequired`) | M1 |
 | Readout | `SignalBarWidget` (done): a stopwatch icon and the delay as one more item in CommNet's signal icon row (`TelemetryUpdate`), so it's there in flight and map view; text styled from the MET display, with the stock tooltip. With no signal, just the stopwatch, grey, so the flight computer can still be opened | M1 |
-| Next contact | `ContactPredictor` (done, stock CommNet only): with no signal, when the vessel is expected to get one, and through which station or vessel. Off in RealAntennas mode (Q9). See §3 | M2 |
+| Signal estimate | `ContactPredictor` (done, stock CommNet only): with no signal, when the vessel is expected to get one, and through which station or vessel; with one, when it's expected to lose it. Off in RealAntennas mode (Q9). See §3 | M2 |
 | Player context | `PlayerInput` (done): a depth counter that Harmony sets around the player's entry points, `FlightInputHandler.Update`, `ActionGroupToggleButton.SetToggle` and `VesselAutopilotUI.OnClickButton` | M2 |
 | Discrete hooks | `CommandHooks` (done): prefixes on `StageManager.ActivateNextStage`, `ActionGroupList.ToggleGroup` and `SetGroup`, and `VesselAutopilot.SetMode`. They queue a command only in player context | M2 |
 | Queue | `CommandQueue` (done) and `QueuedCommand` with `StageCommand`, `ActionGroupCommand` and `SasModeCommand` (done), held and run by `LightLagVessel` | M2 |
-| Flight computer | `FlightComputerPanel` (done): uGUI "mission console" (black glass, monospace, signal green, amber for what's on its way) opened from the readout; control path hop by hop (with no signal, the next contact instead), input in flight, queue with countdowns and abort, extra delay | M2 |
-| Time warp | `WarpGuard` (done): drops on-rails warp to 1× before a queued command runs | M2 |
+| Flight computer | `FlightComputerPanel` (done): uGUI "mission console" (black glass, monospace, signal green, amber for what's on its way) opened from the readout; control path hop by hop, the signal estimate (next contact or loss) with a warp button, input in flight, queue with countdowns, warp and abort, extra delay. Warp buttons use stock's `TimeWarp.fetch.WarpTo`, as the map's "Warp Here" does | M2 |
+| Time warp | `WarpGuard` (done): drops on-rails warp to 1× before a queued command runs, cancelling a stock warp-to first | M2 |
 | Part menus | `PartMenuHooks` (done): `BaseEvent.Invoke` inside `UIPartActionButton.OnClick`, and `UIPartActionFieldItem.SetFieldValue`, → `PartEventCommand` and `PartFieldCommand`; `ScienceHooks` wraps the science results dialog's callbacks → `ScienceCommand`; `Windows`/`WindowHooks` delay window buttons listed in `LIGHTLAG_WINDOW` nodes → `MethodCommand`; `Exemptions` reads `LIGHTLAG_EXEMPTIONS` nodes and RemoteTech's `skip_delay`/`skip_control` categories | M3 |
 | API | `LightLagAPI` | M4 |
 | RealAntennas adapter | `LightLag.RealAntennas.dll` with `[KSPAssemblyDependency("RealAntennas")]`; strength rules from `RACommLink` data rates; a next-contact model (Q9) | M5 |
@@ -38,13 +38,14 @@ The background research is in `../COMMNET_RT_FEASIBILITY.md` and the repo plan i
 - **No connection:** with stock's "Require Signal for Control" on, the delay is infinite and nothing new can be sent. With it off, no delay applies.
 - **Local control:** the delay is 0.
 
-### Next contact
+### Next contact and signal loss
 
-CommNet only knows who can reach whom right now; nothing in KSP looks ahead. `ContactPredictor` does, for the active vessel while it has no signal:
+CommNet only knows who can reach whom right now; nothing in KSP looks ahead. `ContactPredictor` does, for the active vessel while delay applies: with no signal it looks for the next contact, with one for the signal loss.
 - **Model:** stock CommNet's link rules at future positions. Every node keeps the antenna powers CommNet gave it now. A link needs `CommNetScenario.RangeModel.InRange` for one of the relay/transmit power pairs, and no body within radius × `scaledRadiusHorizonMultiplier` × CommNet's occlusion multiplier (vacuum or atmosphere) of the line, like stock's horizon culling but as a sphere. A path goes through nodes with relay power and ends at a control source (`isControlSource`; one that isn't multi-hop only directly).
 - **Where things will be:** vessels in flight on their current orbit (`Orbit.getTruePositionAtUT`); landed vessels and ground stations at their latitude, longitude and altitude, turned with the body (`360° × Δt / rotationPeriod` of longitude), plus the body's own `getTruePositionAtUT`.
 - **Search:** 600 samples up to a horizon of two orbits (or two of the body's days when landed), between an hour and 50 game days, and no later than the end of the orbit patch (SOI change, maneuver). 40 samples a frame; then bisection to about a second. It restarts every 5 s of real time and keeps the last answer meanwhile. A window shorter than the sample step can be missed.
-- **Not modelled:** burns, staging, plasma blackout, power running out. If the model sees a path now while CommNet doesn't, something outside it cuts the signal (plasma, say), so there's no estimate.
+- **Not modelled:** burns, staging, plasma blackout, power running out. If the model disagrees with CommNet about now (it sees a path while CommNet doesn't, as in plasma, or the other way round), something outside it decides the signal, so there's no estimate.
+- **Warp:** the flight computer warps with stock's `TimeWarp.fetch.WarpTo`, which picks and lowers the rate by itself: to 10 s before a contact, to the delay plus 30 s before a loss (so a last command sent then still arrives), and to 10 s before a queued command runs. `WarpGuard` then drops to 1× for the command itself.
 - **RealAntennas mode:** off whenever RealAntennas is loaded (`ContactPredictor.RealAntennasMode`), and on any other network that isn't stock's `CommNetwork`; the flight computer and tooltip show no line. Turning it back on for RealAntennas is part of M5 (Q9).
 - **Self-check:** `ContactPredictor.ModelCheck` runs the model at the current time; the harness checks it agrees with CommNet for a connected vessel.
 

@@ -19,11 +19,13 @@ namespace LightLag
     /// hides with the UI (F2), and takes clicks over it. Opened from the signal bar
     /// (<see cref="SignalBarWidget"/>), which also drives <see cref="Refresh"/>.
     ///
-    /// Shows the delay and the control path hop by hop (with no signal, the estimated next
-    /// contact from <see cref="ContactPredictor"/> instead), whether stick and throttle input is
+    /// Shows the delay and the control path hop by hop; the <see cref="ContactPredictor"/>'s
+    /// estimate of the next contact (no signal) or signal loss, with a button that warps there
+    /// with stock's warp-to; whether stick and throttle input is
     /// still arriving and until when (it can't be cancelled), each queued command with its
-    /// countdown and an abort button (an abort is itself a signal, so it's allowed only if it can
-    /// arrive before the command runs), and the vessel's extra delay.
+    /// countdown, a warp button (to just before it runs) and an abort button (an abort is itself a
+    /// signal, so it's allowed only if it can arrive before the command runs), and the vessel's
+    /// extra delay.
     /// </summary>
     internal class FlightComputerPanel
     {
@@ -40,6 +42,12 @@ namespace LightLag
         private static readonly Color RowGlass = new Color(0.063f, 0.102f, 0.071f, 1f);
         private static readonly Color AbortGlass = new Color(0.3f, 0.09f, 0.09f, 1f);
         private static readonly Color Disabled = new Color(0.35f, 0.4f, 0.36f);
+        private static readonly Color WarpGlass = new Color(0.07f, 0.2f, 0.1f, 1f);
+
+        /// <summary>Warp stops this long before a contact or a command runs.</summary>
+        private const double WarpLead = 10.0;
+        /// <summary>Before a loss, warp also leaves time for a last command to arrive: the delay plus this.</summary>
+        private const double LossLead = 30.0;
 
         /// <summary>Where the window sits (top-left corner, from the canvas's top-left), kept for the session.</summary>
         private static Vector2 _position = new Vector2(260f, -90f);
@@ -48,7 +56,11 @@ namespace LightLag
         private readonly Tooltip_Text _tooltipPrefab;
         private GameObject _root;
         private RectTransform _rect;
-        private TextMeshProUGUI _title, _queued, _delay, _contact, _path, _distance, _input, _empty;
+        private TextMeshProUGUI _title, _queued, _delay, _contact, _caveat, _path, _distance, _input, _empty;
+        private GameObject _contactRow;
+        private Button _contactWarp;
+        private ContactPredictor _predictor;
+        private double _delayNow;
         private RectTransform _rows;
         private TMP_InputField _extra;
         private readonly Dictionary<QueuedCommand, Row> _rowFor = new Dictionary<QueuedCommand, Row>();
@@ -57,8 +69,8 @@ namespace LightLag
         private sealed class Row
         {
             public GameObject Root;
-            public TextMeshProUGUI Label, Countdown, AbortText;
-            public Button Abort;
+            public TextMeshProUGUI Label, Countdown, AbortText, WarpText;
+            public Button Abort, Warp;
         }
 
         public FlightComputerPanel(Tooltip_Text tooltipPrefab) => _tooltipPrefab = tooltipPrefab;
@@ -140,7 +152,8 @@ namespace LightLag
                     break;
             }
             SetPath(vessel, state == DelayStatus.State.Delay);
-            SetContact(state == DelayStatus.State.NoSignal ? contact : null);
+            _delayNow = delay;
+            SetContact(state == DelayStatus.State.NoSignal || state == DelayStatus.State.Delay ? contact : null, now);
 
             // Stick and throttle are analog: holding a key sends a stream of changes, so they're
             // one line (still arriving, and until when), not a list of commands.
@@ -155,36 +168,56 @@ namespace LightLag
         }
 
         /// <summary>
-        /// The next-contact estimate, for the flight computer and the signal bar's tooltip:
-        /// when, and through which station or vessel; or that none is expected within the
-        /// search; or that it's still looking. Null when there's nothing to say, including when
-        /// the estimate is off (RealAntennas mode).
+        /// The signal estimate, for the flight computer and the signal bar's tooltip. With no
+        /// signal: the next contact, when and through which station or vessel. With one: when
+        /// it's lost. Or that neither is expected within the search, or that it's still looking.
+        /// Null when there's nothing to say, including when the estimate is off (RealAntennas mode).
         /// </summary>
         internal static string ContactText(ContactPredictor contact)
         {
             if (contact == null) return null;
+            string kind = contact.Contact ? "Contact" : "Loss";
             switch (contact.Result)
             {
                 case ContactPredictor.Status.Found:
-                    double wait = Math.Max(0, contact.ContactUT - Planetarium.GetUniversalTime());
-                    return Localizer.Format("#LightLag_Contact_Found", DelayService.Format(wait), contact.Via);
+                    double wait = Math.Max(0, contact.ChangeUT - Planetarium.GetUniversalTime());
+                    return Localizer.Format($"#LightLag_{kind}_Found", DelayService.Format(wait), contact.Via);
                 case ContactPredictor.Status.NotFound:
-                    return Localizer.Format("#LightLag_Contact_NotFound", DelayService.Format(contact.Horizon));
+                    return Localizer.Format($"#LightLag_{kind}_NotFound", DelayService.Format(contact.Horizon));
                 default:
-                    return contact.Searching ? Localizer.Format("#LightLag_Contact_Searching") : null;
+                    return contact.Searching ? Localizer.Format($"#LightLag_{kind}_Searching") : null;
             }
         }
 
-        private void SetContact(ContactPredictor contact)
+        /// <summary>
+        /// Where the warp button warps to: just before the contact, or before the loss with time
+        /// left for a command sent then to arrive. NaN when there's no estimate.
+        /// </summary>
+        private static double WarpTarget(ContactPredictor contact, double delay)
         {
+            if (contact == null || contact.Result != ContactPredictor.Status.Found) return double.NaN;
+            return contact.Contact ? contact.ChangeUT - WarpLead : contact.ChangeUT - delay - LossLead;
+        }
+
+        private void SetContact(ContactPredictor contact, double now)
+        {
+            _predictor = contact;
             string text = ContactText(contact);
-            _contact.gameObject.SetActive(text != null);
+            _contactRow.SetActive(text != null);
+            bool estimate = text != null && (contact.Result == ContactPredictor.Status.Found || contact.Result == ContactPredictor.Status.NotFound);
+            _caveat.gameObject.SetActive(estimate);
             if (text == null) return;
             _contact.text = text;
-            // The path lines are hidden without a signal; the distance line carries the caveat.
-            bool estimate = contact.Result == ContactPredictor.Status.Found || contact.Result == ContactPredictor.Status.NotFound;
-            _distance.gameObject.SetActive(estimate);
-            if (estimate) _distance.text = Localizer.Format("#LightLag_Contact_Caveat");
+            double target = WarpTarget(contact, double.IsInfinity(_delayNow) ? 0 : _delayNow);
+            _contactWarp.gameObject.SetActive(!double.IsNaN(target) && target > now + 1.0);
+        }
+
+        /// <summary>Stock's warp-to, as the map's "Warp Here" uses: it speeds up and slows down by itself.</summary>
+        private static void WarpTo(double ut, string what)
+        {
+            if (TimeWarp.fetch == null) return;
+            Log.Info($"warping to {what}, {DelayService.Format(ut - Planetarium.GetUniversalTime())} ahead");
+            TimeWarp.fetch.WarpTo(ut);
         }
 
         private void SetPath(Vessel vessel, bool show)
@@ -246,6 +279,10 @@ namespace LightLag
                     row.Countdown.text = Localizer.Format("#LightLag_Console_Held", DelayService.Format(Math.Max(0, command.ExecuteUT - now)));
                     row.Countdown.color = Green;
                 }
+                bool canWarp = !command.CancelPending && command.ExecuteUT - WarpLead > now + 1.0;
+                row.Warp.interactable = canWarp;
+                row.WarpText.color = canWarp ? Green : Disabled;
+
                 bool canAbort = CommandQueue.CanCancel(command, now, delay);
                 row.Abort.interactable = canAbort;
                 row.AbortText.color = canAbort ? Red : Disabled;
@@ -269,6 +306,13 @@ namespace LightLag
 
             row.Countdown = Text("Countdown", root.transform, "", 13f, Amber);
             row.Countdown.alignment = TextAlignmentOptions.MidlineRight;
+
+            row.Warp = Button("Warp", root.transform, Localizer.Format("#LightLag_Console_Warp"), WarpGlass, Green, out row.WarpText);
+            row.Warp.onClick.AddListener(() =>
+            {
+                double target = command.ExecuteUT - WarpLead;
+                if (!command.CancelPending && target > Planetarium.GetUniversalTime() + 1.0) WarpTo(target, $"'{command.Label}'");
+            });
 
             row.Abort = Button("Abort", root.transform, Localizer.Format("#LightLag_Console_Abort"), AbortGlass, Red, out row.AbortText);
             row.Abort.onClick.AddListener(() =>
@@ -318,11 +362,26 @@ namespace LightLag
             Rule(glass.transform);
 
             _delay = Text("Delay", glass.transform, "", 24f, Green);
-            _contact = Text("Contact", glass.transform, "", 13f, Amber);
-            _contact.enableWordWrapping = true;
             _path = Text("Path", glass.transform, "", 13f, Green);
             _path.enableWordWrapping = true;
             _distance = Text("Distance", glass.transform, "", 11f, Dim);
+
+            // Signal estimate: next contact or signal loss, with a warp button, and its caveat.
+            _contactRow = Group("Contact", glass.transform);
+            Horizontal(_contactRow, 8f, new RectOffset(0, 0, 0, 0)).childAlignment = TextAnchor.MiddleLeft;
+            _contact = Text("Text", _contactRow.transform, "", 13f, Amber);
+            _contact.enableWordWrapping = true;
+            _contact.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
+            _contactWarp = Button("Warp", _contactRow.transform, Localizer.Format("#LightLag_Console_Warp"), WarpGlass, Green, out _);
+            _contactWarp.onClick.AddListener(() =>
+            {
+                double target = WarpTarget(_predictor, double.IsInfinity(_delayNow) ? 0 : _delayNow);
+                if (!double.IsNaN(target) && target > Planetarium.GetUniversalTime() + 1.0)
+                    WarpTo(target, _predictor.Contact ? "the next contact" : "before the signal loss");
+            });
+            _caveat = Text("Caveat", glass.transform, "", 11f, Dim);
+            _caveat.text = Localizer.Format("#LightLag_Contact_Caveat");
+            _caveat.enableWordWrapping = true;
             _input = Text("Input", glass.transform, "", 13f, Amber, FontStyles.UpperCase);
 
             Text("QueueLabel", glass.transform, Localizer.Format("#LightLag_Console_Queue"), 11f, Dim, FontStyles.UpperCase);

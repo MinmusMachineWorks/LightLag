@@ -14,8 +14,8 @@ namespace LightLag
     /// icon (the flight computer button) and the active vessel's delay ("2.31 s", "Local",
     /// "No delay"), plus how many commands are queued. With no signal the stopwatch stays, grey
     /// and without text (stock's red control icon says why), so the flight computer can still be
-    /// opened; meanwhile it runs the <see cref="ContactPredictor"/>, whose estimate is in the
-    /// tooltip and the flight computer. The row lays its icons out itself (it grows
+    /// opened. While delay applies it runs the <see cref="ContactPredictor"/> (next contact with
+    /// no signal, signal loss with one), whose estimate is in the tooltip and the flight computer. The row lays its icons out itself (it grows
     /// when stock shows the globe button), so the readout joins that layout and the panel's own
     /// background takes it in. If the row has no layout group, the readout is placed after the
     /// last icon and the background widened by hand. Its text copies the MET display; its
@@ -177,7 +177,8 @@ namespace LightLag
             _window.UpdateLock();
             Vessel vessel = FlightGlobals.ActiveVessel;
             DelayStatus.State state = DelayStatus.Of(vessel, out _);
-            if (state == DelayStatus.State.NoSignal) _contact.Update(vessel);
+            if (state == DelayStatus.State.NoSignal || state == DelayStatus.State.Delay)
+                _contact.Update(vessel, state == DelayStatus.State.Delay);
             else _contact.Reset();
             if (Time.unscaledTime < _nextUpdate) return;
             _nextUpdate = Time.unscaledTime + UpdateSeconds;
@@ -209,7 +210,7 @@ namespace LightLag
                 if (!_inLayout) PlaceByHand();
             }
             string tooltip = DelayStatus.Long(vessel);
-            string contact = noSignal ? FlightComputerPanel.ContactText(_contact) : null;
+            string contact = FlightComputerPanel.ContactText(_contact);
             if (!string.IsNullOrEmpty(contact)) tooltip += "\n" + contact;
             _tooltip?.SetText(tooltip + "\n" + Localizer.Format("#LightLag_Bar_Tooltip"));
         }

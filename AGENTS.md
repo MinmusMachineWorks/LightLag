@@ -52,7 +52,7 @@ src/LightLag/                 LightLag.dll
   Log.cs                      [LightLag]-prefixed logging
   Delay/DelayService.cs       delay from vessel.connection.ControlPath; Applies(), GetDelay(), Format()
   Delay/LocalControl.cs       EVA or CommNet's Kerbal control flag: no delay
-  Delay/ContactPredictor.cs   with no signal: estimated next contact, from stock CommNet's link rules at future positions
+  Delay/ContactPredictor.cs   estimated next contact (no signal) or signal loss, from stock CommNet's link rules at future positions
   Vessel/LightLagVessel.cs    VesselModule on loaded vessels: FlyByWireDelay first in OnPreAutopilotUpdate; queue, extra delay, save
   Input/FlyByWireDelay.cs     queues the player's ctrlState and replays it after the delay
   Input/PlayerInput.cs        player context: set around the player's entry points by Harmony
