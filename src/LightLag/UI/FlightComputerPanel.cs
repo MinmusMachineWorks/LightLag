@@ -122,7 +122,7 @@ namespace LightLag
             switch (state)
             {
                 case DelayStatus.State.Delay:
-                    _delay.text = Localizer.Format("#LightLag_Console_Delay", Mono(DelayService.Format(delay)));
+                    _delay.text = Localizer.Format("#LightLag_Console_Delay", DelayService.Format(delay));
                     _delay.color = Green;
                     break;
                 case DelayStatus.State.NoSignal:
@@ -146,7 +146,7 @@ namespace LightLag
             bool arriving = input != null && input.PendingCount > 0;
             _input.gameObject.SetActive(arriving);
             if (arriving)
-                _input.text = Localizer.Format("#LightLag_Console_Input", Mono(DelayService.Format(Math.Max(0, input.LastArrivalUT - now))));
+                _input.text = Localizer.Format("#LightLag_Console_Input", DelayService.Format(Math.Max(0, input.LastArrivalUT - now)));
 
             RefreshRows(vessel, module, now, double.IsInfinity(delay) ? double.PositiveInfinity : delay);
             _empty.gameObject.SetActive(queued == 0);
@@ -169,12 +169,12 @@ namespace LightLag
                 if (link?.a == null || link.b == null) continue;
                 double hop = (link.a.position - link.b.position).magnitude;
                 meters += hop;
-                if (sb.Length == 0) sb.Append(i == 0 ? vessel.vesselName : link.a.displayName);
+                if (sb.Length == 0) sb.Append(i == 0 ? vessel.vesselName : Localizer.Format(link.a.displayName));
                 sb.Append(" <color=#").Append(ColorUtility.ToHtmlStringRGB(Dim)).Append(">— ")
-                  .Append(Mono(DelayService.Format(hop / speed))).Append(" —</color> ").Append(link.b.displayName);
+                  .Append(DelayService.Format(hop / speed)).Append(" —</color> ").Append(Localizer.Format(link.b.displayName));
             }
             _path.text = sb.ToString();
-            _distance.text = Localizer.Format("#LightLag_Console_Distance", (meters / 1000.0).ToString("N0", CultureInfo.CurrentCulture), path.Count);
+            _distance.text = Localizer.Format(path.Count == 1 ? "#LightLag_Console_Distance1" : "#LightLag_Console_Distance", (meters / 1000.0).ToString("N0", CultureInfo.CurrentCulture), path.Count);
         }
 
         private void RefreshRows(Vessel vessel, LightLagVessel module, double now, double delay)
@@ -198,17 +198,17 @@ namespace LightLag
 
                 if (command.CancelPending)
                 {
-                    row.Countdown.text = Localizer.Format("#LightLag_Console_Aborting", Mono(DelayService.Format(Math.Max(0, command.CancelArrivalUT - now))));
+                    row.Countdown.text = Localizer.Format("#LightLag_Console_Aborting", DelayService.Format(Math.Max(0, command.CancelArrivalUT - now)));
                     row.Countdown.color = Red;
                 }
                 else if (now < command.ArrivalUT)
                 {
-                    row.Countdown.text = Localizer.Format("#LightLag_Console_Arrives", Mono(DelayService.Format(command.ArrivalUT - now)));
+                    row.Countdown.text = Localizer.Format("#LightLag_Console_Arrives", DelayService.Format(command.ArrivalUT - now));
                     row.Countdown.color = Amber;
                 }
                 else
                 {
-                    row.Countdown.text = Localizer.Format("#LightLag_Console_Held", Mono(DelayService.Format(Math.Max(0, command.ExecuteUT - now))));
+                    row.Countdown.text = Localizer.Format("#LightLag_Console_Held", DelayService.Format(Math.Max(0, command.ExecuteUT - now)));
                     row.Countdown.color = Green;
                 }
                 bool canAbort = CommandQueue.CanCancel(command, now, delay);
@@ -321,9 +321,6 @@ namespace LightLag
         }
 
         // ---- building blocks ----
-
-        /// <summary>Monospaced digits, so countdowns don't jitter in a proportional font.</summary>
-        private static string Mono(string text) => _font != null && IsMono(_font) ? text : $"<mspace=0.6em>{text}</mspace>";
 
         private static bool IsMono(TMP_FontAsset font) => font.name.IndexOf("mono", StringComparison.OrdinalIgnoreCase) >= 0;
 
