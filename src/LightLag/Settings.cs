@@ -11,7 +11,6 @@ namespace LightLag
 
     /// <summary>
     /// LightLag's difficulty settings. They sit in the same section as stock CommNet's settings.
-    /// Nothing reads them yet: delay arrives in milestone M1.
     /// </summary>
     public class LightLagParams : GameParameters.CustomParameterNode
     {
@@ -31,6 +30,10 @@ namespace LightLag
 
         [GameParameters.CustomParameterUI("#LightLag_Settings_ThrottleOnLoss", toolTip = "#LightLag_Settings_ThrottleOnLoss_Tip")]
         public ThrottleOnSignalLoss throttleOnSignalLoss = ThrottleOnSignalLoss.Cut;
+
+        /// <summary>Estimate the next contact or signal loss (<see cref="ContactPredictor"/>). Off by default: it's an estimate.</summary>
+        [GameParameters.CustomParameterUI("#LightLag_Settings_SignalEstimates", toolTip = "#LightLag_Settings_SignalEstimates_Tip")]
+        public bool signalEstimates = false;
 
         /// <summary>The current game's settings, or null outside a game.</summary>
         public static LightLagParams Current => HighLogic.CurrentGame?.Parameters.CustomParams<LightLagParams>();

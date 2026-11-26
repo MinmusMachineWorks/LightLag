@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using CommNet;
+using HarmonyLib;
 
 namespace LightLag
 {
@@ -10,9 +12,12 @@ namespace LightLag
     /// (contact), or when a connected one loses it (loss). CommNet only knows who can reach
     /// whom right now, so LightLag steps forward in time and redoes the link checks itself.
     ///
+    /// <para><b>Off by default:</b> the "Signal estimates" setting turns it on.</para>
+    ///
     /// <para><b>Model:</b> stock CommNet's rules, applied to where everything will be. Every
     /// node keeps the antenna powers CommNet gave it now. Vessels in flight follow their current
-    /// orbit (they coast), landed vessels and ground stations turn with their body. A link needs
+    /// orbit (they coast), landed vessels and ground stations turn with their body (a station's
+    /// place is read from its <see cref="CommNetHome"/>). A link needs
     /// <see cref="CommNetScenario.RangeModel"/> to put the pair in range and no body in the way;
     /// a body blocks a radius of its radius × <c>scaledRadiusHorizonMultiplier</c> × CommNet's
     /// occlusion multiplier (vacuum or atmosphere), like stock's horizon culling (as a sphere).
@@ -21,33 +26,49 @@ namespace LightLag
     ///
     /// <para><b>Not modelled:</b> burns and staging, plasma blackout, power running out, and
     /// vessels changing sphere of influence (the search stops at the end of the vessel's orbit
-    /// patch). If the model disagrees with CommNet about now (it sees a path during plasma
-    /// blackout, say), something outside it decides the signal, so there's no estimate.</para>
+    /// patch). If the model disagrees with CommNet at its last rebuild (it sees a path during
+    /// plasma blackout, say), something outside it decides the signal, so there's no estimate.</para>
     ///
     /// <para><b>Stock CommNet only.</b> In RealAntennas mode (RealAntennas loaded) it's off,
     /// and so on any other network that replaces stock's: their links follow other rules.
     /// RealAntennas gets its own model with the adapter (docs/DESIGN.md, Q9).</para>
     ///
-    /// <para><b>Search:</b> samples up to a horizon (two of the vessel's orbits or its body's
-    /// days, from an hour up to 50 days), a few dozen samples per frame so it doesn't stall the
-    /// game, then bisects the first change to the second. It starts over every few seconds of real
-    /// time, keeping the last answer until the new one is ready.</para>
+    /// <para><b>Search:</b> steps forward up to a horizon (two of the vessel's orbits or its
+    /// body's days, from an hour up to 50 days), then bisects the first change to the second.
+    /// Each step is short enough that no link can change within it: for every pair of nodes the
+    /// path could use, it takes how far the pair is from changing (range left, or clearance over
+    /// each body) over how fast that can change (their relative speed), and steps half the
+    /// smallest such time. So a short gap or window between two steps isn't missed. Steps are
+    /// at most 1/600 of the horizon, and at least a second (or 1/20000 of the horizon). It runs
+    /// for about a millisecond per frame so it doesn't stall the game, and starts over every few
+    /// seconds of real time, keeping the last answer until the new one is ready.</para>
+    ///
+    /// <para><b>From CommNet's last rebuild:</b> CommNet only rechecks its links every few
+    /// seconds (every half-second of real time in time warp, so minutes of game time at high
+    /// warp). The search starts at that rebuild, where the model must agree with CommNet's
+    /// state, rather than at now. A change the model finds between the rebuild and now is one
+    /// CommNet hasn't noticed yet: the estimate shows it as due now.</para>
     /// </summary>
     internal sealed class ContactPredictor
     {
         internal enum Status
         {
-            /// <summary>Not searched yet, or the model disagrees with CommNet about now.</summary>
+            /// <summary>Not searched yet, or the model disagrees with CommNet.</summary>
             Unknown,
-            /// <summary>Off: RealAntennas mode, or another CommNet the model doesn't cover. Nothing is shown.</summary>
+            /// <summary>Off: the setting is off, RealAntennas mode, or another CommNet the model doesn't cover. Nothing is shown.</summary>
             Off,
             Found,
             NotFound,
         }
 
-        private const int Samples = 600, SamplesPerFrame = 40, Bisections = 14;
+        private const int MaxStepFraction = 600, MinStepFraction = 20000, Bisections = 14;
         private const float RestartSeconds = 5f;
         private const double MinHorizon = 3600.0, MaxHorizonDays = 50.0;
+        /// <summary>Of the time no link can change in, how much a step takes (margin for speeds changing).</summary>
+        private const double StepSafety = 0.5;
+        /// <summary>Seconds ahead for the finite-difference velocities.</summary>
+        private const double VelocityDt = 1.0;
+        private const double FrameBudgetMs = 1.0;
 
         public Status Result { get; private set; } = Status.Unknown;
         /// <summary>True when looking for contact (no signal now), false when looking for loss.</summary>
@@ -69,29 +90,49 @@ namespace LightLag
             public CelestialBody Body;
             public double Lat, Lon, Alt;
             public bool Relay, Target, MultiHop;
-            public Vector3d Position;
+            public Vector3d Position, Velocity;
         }
 
         private sealed class Occluder
         {
             public CelestialBody Body;
             public double Radius;
-            public Vector3d Position;
+            public Vector3d Position, Velocity;
+        }
+
+        /// <summary>A pair of nodes the path could link, with its range (powers don't change).</summary>
+        private struct Pair
+        {
+            public int A, B;
+            public double Range;
         }
 
         private readonly List<Node> _nodes = new List<Node>();
         private readonly List<Occluder> _occluders = new List<Occluder>();
         private readonly Dictionary<CelestialBody, Vector3d> _bodyAt = new Dictionary<CelestialBody, Vector3d>();
+        private readonly List<Pair> _pairs = new List<Pair>();
         private readonly Queue<int> _queue = new Queue<int>();
+        private readonly Stopwatch _watch = new Stopwatch();
         private bool[] _visited = new bool[0];
+        private Vector3d[] _ahead = new Vector3d[0];
         private Node _start;
         private Guid _vesselId;
-        private double _now, _end, _step, _t;
+        private double _now, _end, _step, _minStep, _maxStep, _t;
         private bool _searching, _connected;
         private float _restartAt;
         private string _reachedVia;
         private static bool _loggedOff;
         private static bool? _realAntennas;
+
+        // When CommNet last rebuilt its links, from the network's post-update callback.
+        private static CommNetwork _watched;
+        private static double _rebuildUT = double.NaN;
+
+        private static readonly AccessTools.FieldRef<CommNetHome, CommNode> HomeComm = AccessTools.FieldRefAccess<CommNetHome, CommNode>("comm");
+        private static readonly AccessTools.FieldRef<CommNetHome, CelestialBody> HomeBody = AccessTools.FieldRefAccess<CommNetHome, CelestialBody>("body");
+        private static readonly AccessTools.FieldRef<CommNetHome, double> HomeLat = AccessTools.FieldRefAccess<CommNetHome, double>("lat");
+        private static readonly AccessTools.FieldRef<CommNetHome, double> HomeLon = AccessTools.FieldRefAccess<CommNetHome, double>("lon");
+        private static readonly AccessTools.FieldRef<CommNetHome, double> HomeAlt = AccessTools.FieldRefAccess<CommNetHome, double>("alt");
 
         /// <summary>RealAntennas is loaded, so it runs CommNet (whether or not its network is up yet).</summary>
         internal static bool RealAntennasMode =>
@@ -116,6 +157,13 @@ namespace LightLag
         /// </summary>
         public void Update(Vessel vessel, bool connected)
         {
+            Watch(CommNetNetwork.Instance?.CommNet);
+            if (!(LightLagParams.Current?.signalEstimates ?? false))
+            {
+                Reset();
+                Result = Status.Off;
+                return;
+            }
             if (vessel == null) { Reset(); return; }
             if (vessel.id != _vesselId || connected != _connected) { Reset(); _vesselId = vessel.id; _connected = connected; }
             if (!_searching)
@@ -126,11 +174,13 @@ namespace LightLag
                 if (!_searching) return;
             }
 
-            for (int i = 0; i < SamplesPerFrame && _searching; i++)
+            _watch.Restart();
+            while (_searching && _watch.Elapsed.TotalMilliseconds < FrameBudgetMs)
             {
                 double previous = _t;
                 _t = Math.Min(_t + _step, _end);
-                if (Connected(_t) != _connected)
+                Move(_t);
+                if (Reached() != _connected)
                 {
                     Finish(Bisect(previous, _t));
                     return;
@@ -141,8 +191,19 @@ namespace LightLag
                     if (Result != Status.NotFound) Log.Info($"{What}: none in the next {DelayService.Format(_end - _now)}");
                     Result = Status.NotFound;
                     Horizon = _end - _now;
+                    return;
                 }
+                _step = Step();
             }
+        }
+
+        /// <summary>Keeps <see cref="_rebuildUT"/> following <paramref name="network"/>'s rebuilds.</summary>
+        private static void Watch(CommNetwork network)
+        {
+            if (network == null || network == _watched) return;
+            network.OnNetworkPostUpdate += () => _rebuildUT = Planetarium.GetUniversalTime();
+            _watched = network;
+            _rebuildUT = double.NaN;
         }
 
         private void Begin(Vessel vessel)
@@ -163,12 +224,15 @@ namespace LightLag
             Snapshot(network, vessel);
             if (_start == null) { Result = Status.Unknown; return; }
 
-            // If the model disagrees with CommNet about now, something outside it decides the signal.
-            if (Connected(_now) != _connected)
+            // CommNet's state is from its last rebuild: start there. If the model disagrees with
+            // CommNet then, something outside it decides the signal.
+            double from = network == _watched && _rebuildUT <= _now ? _rebuildUT : _now;
+            Move(from);
+            if (Reached() != _connected)
             {
                 if (Result != Status.Unknown || _vesselId != _loggedUnknown)
-                    Log.Info(_connected ? $"{What}: the model sees no path now, though CommNet does; no estimate"
-                                        : $"{What}: the model sees a path to {_reachedVia} now, so something else cuts the signal; no estimate");
+                    Log.Info(_connected ? $"{What}: the model sees no path, though CommNet does; no estimate"
+                                        : $"{What}: the model sees a path to {_reachedVia}, so something else cuts the signal; no estimate");
                 _loggedUnknown = _vesselId;
                 Result = Status.Unknown;
                 return;
@@ -181,10 +245,12 @@ namespace LightLag
             if (orbit != null && orbit.patchEndTransition != Orbit.PatchTransitionType.FINAL
                 && orbit.patchEndTransition != Orbit.PatchTransitionType.INITIAL && orbit.EndUT > _now)
                 _end = Math.Min(_end, orbit.EndUT);
-            _step = (_end - _now) / Samples;
-            _t = _now;
-            _searching = _step > 0;
-            if (!_searching) Result = Status.NotFound;
+            _maxStep = (_end - _now) / MaxStepFraction;
+            _minStep = Math.Max(1.0, (_end - _now) / MinStepFraction);
+            _t = from;
+            _searching = _maxStep > 0;
+            if (!_searching) { Result = Status.NotFound; return; }
+            _step = Step();
         }
 
         /// <summary>One orbit, or one day of the body it sits on.</summary>
@@ -206,19 +272,21 @@ namespace LightLag
             Result = Status.Found;
             ChangeUT = ut;
             Via = via;
-            if (news) Log.Info($"{What}: in {DelayService.Format(ut - _now)}{(via != null ? " via " + via : "")} ({_nodes.Count} nodes)");
+            if (news) Log.Info($"{What}: in {DelayService.Format(Math.Max(0, ut - _now))}{(via != null ? " via " + via : "")} ({_nodes.Count} nodes)");
         }
 
         /// <summary>
-        /// Checks the model against CommNet now, for the test harness: whether the model sees a
-        /// path from <paramref name="vessel"/> and how far (m) its node positions are from
-        /// CommNet's. NaN when the model doesn't cover this CommNet or the vessel.
+        /// Checks the model against CommNet, for the test harness: rebuilds the network so its
+        /// positions are from now, then returns whether the model sees a path from
+        /// <paramref name="vessel"/> and how far (m) its node positions are from CommNet's.
+        /// NaN when the model doesn't cover this CommNet or the vessel.
         /// </summary>
         internal static double ModelCheck(Vessel vessel, out bool connected)
         {
             connected = false;
             CommNetwork network = CommNetNetwork.Instance?.CommNet;
             if (network == null || !Covers(network) || vessel?.connection?.Comm == null) return double.NaN;
+            network.Rebuild();
             var model = new ContactPredictor { _now = Planetarium.GetUniversalTime() };
             model.Snapshot(network, vessel);
             if (model._start == null) return double.NaN;
@@ -255,6 +323,12 @@ namespace LightLag
                 CommNode comm = v?.connection?.Comm;
                 if (comm != null && !vesselFor.ContainsKey(comm)) vesselFor.Add(comm, v);
             }
+            var homeFor = new Dictionary<CommNode, CommNetHome>();
+            foreach (CommNetHome home in UnityEngine.Object.FindObjectsOfType<CommNetHome>())
+            {
+                CommNode comm = HomeComm(home);
+                if (comm != null && !homeFor.ContainsKey(comm)) homeFor.Add(comm, home);
+            }
 
             for (int i = 0; i < network.Count; i++)
             {
@@ -278,7 +352,14 @@ namespace LightLag
                 else if (comm.isHome)
                 {
                     node.Name = KSP.Localization.Localizer.Format(comm.displayName);
-                    OnSurface(node, NearestBody(comm.precisePosition), comm.precisePosition);
+                    if (homeFor.TryGetValue(comm, out CommNetHome home) && HomeBody(home) != null)
+                    {
+                        node.Body = HomeBody(home);
+                        node.Lat = HomeLat(home);
+                        node.Lon = HomeLon(home);
+                        node.Alt = HomeAlt(home);
+                    }
+                    else OnSurface(node, NearestBody(comm.precisePosition), comm.precisePosition);
                 }
                 else continue; // neither a vessel nor a ground station: nothing to move it by
                 if (node.Body == null && node.Orbit == null) continue;
@@ -292,6 +373,21 @@ namespace LightLag
             }
             if (_visited.Length < _nodes.Count) _visited = new bool[_nodes.Count];
 
+            // The pairs a path could link: from the vessel or a relay (a ground station ends the
+            // path) to a relay or a control source.
+            _pairs.Clear();
+            IRangeModel range = CommNetScenario.RangeModel;
+            for (int i = 0; i < _nodes.Count; i++)
+                for (int j = i + 1; j < _nodes.Count; j++)
+                {
+                    if (!(From(i) && To(j)) && !(From(j) && To(i))) continue;
+                    CommNode x = _nodes[i].Comm, y = _nodes[j].Comm;
+                    double reach = Math.Max(range.GetMaximumRange(x.antennaRelay.power, y.antennaRelay.power),
+                                   Math.Max(range.GetMaximumRange(x.antennaRelay.power, y.antennaTransmit.power),
+                                            range.GetMaximumRange(x.antennaTransmit.power, y.antennaRelay.power)));
+                    _pairs.Add(new Pair { A = i, B = j, Range = reach });
+                }
+
             _occluders.Clear();
             CommNetParams settings = HighLogic.CurrentGame?.Parameters?.CustomParams<CommNetParams>();
             foreach (CelestialBody body in FlightGlobals.Bodies)
@@ -301,6 +397,9 @@ namespace LightLag
                 if (radius > 0) _occluders.Add(new Occluder { Body = body, Radius = radius });
             }
         }
+
+        private bool From(int i) => i == 0 || (i > 0 && _nodes[i].Relay && !(_nodes[i].Target && _nodes[i].MultiHop));
+        private bool To(int i) => i > 0 && (_nodes[i].Relay || _nodes[i].Target);
 
         private static void OnSurface(Node node, CelestialBody body, Vector3d position)
         {
@@ -352,10 +451,53 @@ namespace LightLag
             foreach (Occluder occluder in _occluders) occluder.Position = BodyAt(occluder.Body, ut);
         }
 
+        /// <summary>Places everything at <paramref name="ut"/> and sets its velocity there.</summary>
+        private void Move(double ut)
+        {
+            int count = _nodes.Count + _occluders.Count;
+            if (_ahead.Length < count) _ahead = new Vector3d[count];
+            PlaceAt(ut + VelocityDt);
+            for (int i = 0; i < _nodes.Count; i++) _ahead[i] = _nodes[i].Position;
+            for (int i = 0; i < _occluders.Count; i++) _ahead[_nodes.Count + i] = _occluders[i].Position;
+            PlaceAt(ut);
+            for (int i = 0; i < _nodes.Count; i++) _nodes[i].Velocity = (_ahead[i] - _nodes[i].Position) / VelocityDt;
+            for (int i = 0; i < _occluders.Count; i++) _occluders[i].Velocity = (_ahead[_nodes.Count + i] - _occluders[i].Position) / VelocityDt;
+        }
+
+        /// <summary>
+        /// The next step after <see cref="Move"/>: half the time before any pair could change,
+        /// its distance from changing (range left, clearance over a body) over how fast that
+        /// distance can shrink (relative speed), within the step limits.
+        /// </summary>
+        private double Step()
+        {
+            double safe = double.MaxValue;
+            foreach (Pair pair in _pairs)
+            {
+                Node a = _nodes[pair.A], b = _nodes[pair.B];
+                double rate = (a.Velocity - b.Velocity).magnitude;
+                if (rate > 0) safe = Math.Min(safe, Math.Abs(pair.Range - (a.Position - b.Position).magnitude) / rate);
+                foreach (Occluder occluder in _occluders)
+                {
+                    // The segment's distance from the body changes no faster than its ends move relative to it.
+                    double speed = Math.Max((a.Velocity - occluder.Velocity).magnitude, (b.Velocity - occluder.Velocity).magnitude);
+                    if (speed <= 0) continue;
+                    safe = Math.Min(safe, Math.Abs(Clearance(occluder, a.Position, b.Position)) / speed);
+                }
+            }
+            return Math.Max(_minStep, Math.Min(_maxStep, StepSafety * safe));
+        }
+
         /// <summary>Whether a path from the vessel reaches a control source at <paramref name="ut"/>.</summary>
         private bool Connected(double ut)
         {
             PlaceAt(ut);
+            return Reached();
+        }
+
+        /// <summary>Whether a path from the vessel reaches a control source, where everything is now placed.</summary>
+        private bool Reached()
+        {
             Array.Clear(_visited, 0, _visited.Length);
             _queue.Clear();
             _queue.Enqueue(0);
@@ -393,18 +535,18 @@ namespace LightLag
                 && !range.InRange(x.antennaTransmit.power, y.antennaRelay.power, sqrDistance))
                 return false;
             foreach (Occluder occluder in _occluders)
-                if (Blocks(occluder, a.Position, b.Position)) return false;
+                if (Clearance(occluder, a.Position, b.Position) < 0) return false;
             return true;
         }
 
-        /// <summary>Whether the segment from <paramref name="p"/> to <paramref name="q"/> passes within the occluder's radius.</summary>
-        private static bool Blocks(Occluder occluder, Vector3d p, Vector3d q)
+        /// <summary>How far (m) the segment from <paramref name="p"/> to <paramref name="q"/> passes outside the occluder's radius; negative when it's blocked.</summary>
+        private static double Clearance(Occluder occluder, Vector3d p, Vector3d q)
         {
             Vector3d d = q - p;
             double length = d.sqrMagnitude;
             double along = length > 0 ? Vector3d.Dot(occluder.Position - p, d) / length : 0;
             along = along < 0 ? 0 : along > 1 ? 1 : along;
-            return (p + d * along - occluder.Position).sqrMagnitude < occluder.Radius * occluder.Radius;
+            return (p + d * along - occluder.Position).magnitude - occluder.Radius;
         }
     }
 }

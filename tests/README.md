@@ -44,7 +44,7 @@ The harness temporarily lowers the speed-of-light multiplier so that the delay i
 | Test | Checks |
 |---|---|
 | delay matches the control path | `DelayService.GetDelay` equals the sum of the `ControlPath` link lengths ÷ (c × multiplier) |
-| next-contact model agrees with CommNet | `ContactPredictor.ModelCheck`, run at the current time, sees a path from the connected vessel, and puts every node within 1 km of CommNet's own position for it. Skipped in RealAntennas mode, where the estimate is off |
+| next-contact model agrees with CommNet | `ContactPredictor.ModelCheck` rebuilds the network, then, run at the current time, sees a path from the connected vessel, and puts every node within 1 km of CommNet's own position for it. Skipped in RealAntennas mode, where the estimate is off. Runs whether or not the "Signal estimates" setting is on |
 | no phantom input when delay starts | after the harness turns delay off and on, nothing is counted in flight 3 physics frames later (don't touch the controls while it runs) |
 | throttle arrives after the delay | after the harness sets the throttle input, `vessel.ctrlState.mainThrottle` changes only after the delay (± 3 physics frames) |
 | non-player commands are instant | a direct `ActionGroups.SetGroup(SAS, true)`, outside any player entry point (as KSP or MechJeb would call it), takes effect in the same frame |
