@@ -152,18 +152,18 @@ Part commands save their target as the part's `persistentId` plus the module's i
 
 ## 8. Milestones
 
-1. **M0:** skeleton, CI, settings, harness. Builds in CI; not loaded in game yet.
-2. **M1:** delay on stock CommNet. **Code done; builds in CI; not checked in game yet.**
+1. **M0:** skeleton, CI, settings, harness. **Done:** loads in game, and the harness runs.
+2. **M1:** delay on stock CommNet. **Code done; partly checked in game:** throttle delay (harness, 2026-11-25) and the delay readout. Steering, translation, wheel and trim, and the signal-loss rules, not yet.
    - delay readout;
    - delayed steering and throttle;
    - signal-loss rules;
    - local-control exemptions.
-3. **M2:** the queue. **Code done; not checked in game yet.**
+3. **M2:** the queue. **Code done; partly checked in game:** SAS mode commands and saving the queue (harness, 2026-11-25), and the flight computer window in use. Staging, action groups, and SAS and RCS toggles, not yet.
    - staging, action groups, SAS/RCS and SAS modes through it;
    - flight computer window with cancel and extra delay;
    - the queue is saved;
    - time warp drops before an arrival.
-4. **M3:** part menus, moved ahead so a near-stock game is fully covered. **Code done; not checked in game yet.**
+4. **M3:** part menus, moved ahead so a near-stock game is fully covered. **Code done; partly checked in game:** the science results dialog (by hand, 2026-11-25). Part-menu buttons and controls, and other mods' windows, not yet.
    - part-menu buttons and controls on the active vessel through the queue;
    - RemoteTech's exemption rules, `Rules/*.cfg`, one file per mod in the set, and the `skip_delay`/`skip_control` markers.
 5. **M4:** `LightLagAPI` and a LightLag backend in MechJebRTBridge.
