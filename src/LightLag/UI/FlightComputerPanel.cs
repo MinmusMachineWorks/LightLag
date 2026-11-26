@@ -357,8 +357,7 @@ namespace LightLag
             _title.overflowMode = TextOverflowModes.Ellipsis;
             _title.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
             _queued = Text("Queued", header.transform, "", 13f, Amber, FontStyles.UpperCase);
-            Button close = Button("Close", header.transform, "×", new Color(0f, 0f, 0f, 0f), Dim, out _);
-            close.onClick.AddListener(Close);
+            CloseButton(header.transform).onClick.AddListener(Close);
             Rule(glass.transform);
 
             _delay = Text("Delay", glass.transform, "", 24f, Green);
@@ -446,6 +445,33 @@ namespace LightLag
         }
 
         private static void Rule(Transform parent) => Size(Panel("Rule", parent, Line), -1f, 1f);
+
+        /// <summary>
+        /// The ×: a 24-point square, clear until the pointer is over it, then red glass with
+        /// a red ×; darker while pressed.
+        /// </summary>
+        private static Button CloseButton(Transform parent)
+        {
+            GameObject go = Panel("Close", parent, Color.white);
+            Size(go, 24f, 24f);
+            Horizontal(go, 0f, new RectOffset(0, 0, 0, 0)).childAlignment = TextAnchor.MiddleCenter;
+            var button = go.AddComponent<Button>();
+            button.targetGraphic = go.GetComponent<Image>();
+            ColorBlock colors = button.colors;
+            colors.normalColor = new Color(1f, 1f, 1f, 0f);
+            colors.highlightedColor = AbortGlass;
+            colors.pressedColor = new Color(AbortGlass.r * 0.6f, AbortGlass.g * 0.6f, AbortGlass.b * 0.6f, 1f);
+            colors.selectedColor = colors.normalColor;
+            colors.fadeDuration = 0.08f;
+            button.colors = colors;
+            TextMeshProUGUI text = Text("Text", go.transform, "×", 20f, Dim);
+            text.alignment = TextAlignmentOptions.Center;
+            var hover = go.AddComponent<HoverText>();
+            hover.Text = text;
+            hover.Normal = Dim;
+            hover.Hover = Red;
+            return button;
+        }
 
         private static void Size(GameObject go, float width, float height)
         {
@@ -543,6 +569,17 @@ namespace LightLag
         }
 
         /// <summary>Drags the window by its header, kept on screen.</summary>
+        /// <summary>Recolors a button's text while the pointer is over it.</summary>
+        private sealed class HoverText : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+        {
+            public TextMeshProUGUI Text;
+            public Color Normal, Hover;
+
+            public void OnPointerEnter(PointerEventData eventData) { if (Text != null) Text.color = Hover; }
+            public void OnPointerExit(PointerEventData eventData) { if (Text != null) Text.color = Normal; }
+            public void OnDisable() { if (Text != null) Text.color = Normal; }
+        }
+
         private sealed class WindowDrag : MonoBehaviour, IDragHandler, IEndDragHandler
         {
             public RectTransform Target;
