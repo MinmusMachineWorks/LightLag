@@ -64,7 +64,7 @@ Only your own commands are delayed. KSP's (SAS switching itself off) and other m
 
 ## For other mods
 
-`LightLag.LightLagAPI` lets another mod read a vessel's delay and connection and send its own commands through the queue: they're delayed, shown in the flight computer, can be aborted, are saved with the vessel, and call the mod back when they run on board. The command node uses RemoteTech's `QueueCommandToFlightComputer` keys, so the same node works for both. See [docs/DESIGN.md](docs/DESIGN.md) §4. MechJebRTBridge's LightLag backend will use it.
+`LightLag.LightLagAPI` lets another mod read a vessel's delay and connection and send its own commands through the queue: they're delayed, shown in the flight computer, can be aborted, are saved with the vessel, and call the mod back when they run on board. The command node uses RemoteTech's `QueueCommandToFlightComputer` keys, so the same node works for both. See [docs/DESIGN.md](docs/DESIGN.md) §4. MechJebRTBridge uses it to delay MechJeb's commands (its LightLag backend, not yet checked in game).
 
 ## Known limitations
 
