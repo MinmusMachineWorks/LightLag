@@ -5,7 +5,7 @@ Light-speed signal delay and a command queue for KSP 1.12, built on CommNet. Com
 - **Stock CommNet:** works on its own. Stock's connection rules, "Require Signal for Control", plasma blackout and probe control points (crewed pods that can fly probes) all still apply.
 - **RealAntennas (recommended):** RealAntennas provides dishes, pointing and real signal strength. LightLag only adds the delay and the queue on top.
 
-**Status: milestone M3, partly checked in game.** Steering, translation, throttle, wheel and trim input to an uncrewed vessel are delayed. Staging, action groups, SAS and RCS toggles, SAS modes and part-menu buttons and controls go through a command queue you can inspect and cancel from. See [docs/DESIGN.md](docs/DESIGN.md) for the plan and [docs/COVERAGE.md](docs/COVERAGE.md) for which inputs are covered.
+**Status: milestones M1–M3 code done and partly checked in game; M4 (the API for other mods) under way.** Steering, translation, throttle, wheel and trim input to an uncrewed vessel are delayed. Staging, action groups, SAS and RCS toggles, SAS modes and part-menu buttons and controls go through a command queue you can inspect and cancel from. See [docs/DESIGN.md](docs/DESIGN.md) for the plan and [docs/COVERAGE.md](docs/COVERAGE.md) for which inputs are covered.
 
 ## Install
 
@@ -61,6 +61,10 @@ Only your own commands are delayed. KSP's (SAS switching itself off) and other m
 - **Science results (Review Data):** Transmit, Discard, Reset and Process in lab are queued like any command, and the data stays on board until the command arrives, as if you'd pressed Keep. Keep acts at once. This works for mod experiments that use the stock dialog too.
 - **Windows opened from a part menu:** their buttons that command the vessel are delayed too: the robotics controller's playback, KAS's winch remote, Konstruction's build buttons, MKS Orbital Logistics' start, abort and resume, Extraplanetary Launchpads' build, pause, cancel, finish and release, and RealAntennas' dish targeting. Each mod's file in `GameData/LightLag/Rules/` lists them (`LIGHTLAG_WINDOW`); another mod can add its own.
 - **Sliders:** a drag is sent as one change, and the slider shows the value on its way. Toggles and other controls show the part's actual state until the command arrives.
+
+## For other mods
+
+`LightLag.LightLagAPI` lets another mod read a vessel's delay and connection and send its own commands through the queue: they're delayed, shown in the flight computer, can be aborted, are saved with the vessel, and call the mod back when they run on board. The command node uses RemoteTech's `QueueCommandToFlightComputer` keys, so the same node works for both. See [docs/DESIGN.md](docs/DESIGN.md) §4. MechJebRTBridge's LightLag backend will use it.
 
 ## Known limitations
 

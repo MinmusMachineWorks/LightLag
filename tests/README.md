@@ -53,6 +53,7 @@ The harness temporarily lowers the speed-of-light multiplier so that the delay i
 | science dialog Discard arrives after the delay | a rerunnable experiment with no data (thermometer, barometer…) is run at once, outside player context; pressing Discard on its results page removes the data only after the delay (± 3 physics frames). Needs one that can run where the vessel is; its own discard resets it |
 | window button arrives after the delay | a robotics controller's Play/pause (the `LIGHTLAG_WINDOW` command `ModuleRoboticController.TogglePlay`), called inside player context the way the window's button is, changes whether it plays only after the delay (± 3 physics frames); the harness toggles it back. Needs Breaking Ground and a KAL controller on the vessel |
 | queued command is saved | while that click is queued, `LightLagVessel`'s save holds a `COMMAND` with `type = SasMode` and the mode |
+| API command arrives after the delay | a command sent with `LightLagAPI.QueueCommand` is in `IsQueued` and the vessel's save (`COMMAND type = External` with the node under `DATA`), and its callback runs after the delay (± 3 physics frames) with the node's values, while `IsRunningCommand` is true; then `IsQueued` is false |
 
 ## Space Center tests
 

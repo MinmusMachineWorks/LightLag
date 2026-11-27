@@ -53,6 +53,7 @@ src/LightLag/                 LightLag.dll
   Delay/DelayService.cs       delay from vessel.connection.ControlPath; Applies(), GetDelay(), Format()
   Delay/LocalControl.cs       EVA or CommNet's Kerbal control flag: no delay
   Delay/ContactPredictor.cs   estimated next contact (no signal) or signal loss, from stock CommNet's link rules at future positions
+  API/LightLagAPI.cs          public API for other mods (MechJebRTBridge): delay, connection, QueueCommand, IsQueued
   Vessel/LightLagVessel.cs    VesselModule on loaded vessels: FlyByWireDelay first in OnPreAutopilotUpdate; queue, extra delay, save
   Input/FlyByWireDelay.cs     queues the player's ctrlState and replays it after the delay
   Input/PlayerInput.cs        player context: set around the player's entry points by Harmony
@@ -63,7 +64,7 @@ src/LightLag/                 LightLag.dll
   Input/Windows.cs            reads LIGHTLAG_WINDOW nodes at the main menu and applies their patches
   Input/Exemptions.cs         part-menu exemptions: LIGHTLAG_EXEMPTIONS nodes, skip_delay/skip_control
   Queue/QueuedCommand.cs      a discrete command: sent, arrival and execute UTs, cancel, save/load
-  Queue/Commands/*.cs         StageCommand, ActionGroupCommand, SasModeCommand, PartEventCommand, PartFieldCommand, ScienceCommand, MethodCommand
+  Queue/Commands/*.cs         StageCommand, ActionGroupCommand, SasModeCommand, PartEventCommand, PartFieldCommand, ScienceCommand, MethodCommand, ExternalCommand
   Queue/PartRef.cs            a saved part and module reference (persistentId, module index and class)
   Queue/CommandQueue.cs       a vessel's commands in run order; runs due ones, handles cancels
   Rules/SignalLoss.cs         stick centered, throttle cut or held, once in-flight input has arrived

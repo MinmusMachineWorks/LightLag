@@ -59,6 +59,7 @@ namespace LightLag
                 case PartFieldCommand.Name: command = new PartFieldCommand(); break;
                 case ScienceCommand.Name: command = new ScienceCommand(); break;
                 case MethodCommand.Name: command = new MethodCommand(); break;
+                case ExternalCommand.Name: command = new ExternalCommand(); break;
                 default: return null;
             }
             if (!TryRead(node, "sent", out command.SentUT) || !TryRead(node, "arrival", out command.ArrivalUT)

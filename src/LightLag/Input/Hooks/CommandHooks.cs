@@ -87,14 +87,32 @@ namespace LightLag
                 return true;
             }
             if (delay <= 0.5 * Time.fixedDeltaTime && module.ExtraDelay <= 0.0) return false;
+            Add(vessel, module, command, delay);
+            return true;
+        }
 
+        /// <summary>
+        /// Queues <paramref name="command"/> whatever the delay, for <see cref="LightLagAPI.QueueCommand"/>.
+        /// False, with nothing queued, when delay doesn't apply or there's no signal.
+        /// </summary>
+        internal static bool Queue(Vessel vessel, QueuedCommand command)
+        {
+            if (vessel == null || !DelayService.Applies(vessel)) return false;
+            LightLagVessel module = LightLagVessel.For(vessel);
+            double delay = DelayService.GetDelay(vessel);
+            if (module == null || double.IsInfinity(delay)) return false;
+            Add(vessel, module, command, delay);
+            return true;
+        }
+
+        private static void Add(Vessel vessel, LightLagVessel module, QueuedCommand command, double delay)
+        {
             double now = Planetarium.GetUniversalTime();
             command.SentUT = now;
             command.ArrivalUT = now + delay;
             command.ExecuteUT = System.Math.Max(command.ArrivalUT, now + module.ExtraDelay);
             module.Queue.Add(command);
             Log.Info($"queued {command.TypeName} '{command.Label}' for {vessel.vesselName}: arrives in {delay:0.###} s, runs in {command.ExecuteUT - now:0.###} s");
-            return true;
         }
     }
 }

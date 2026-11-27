@@ -146,6 +146,9 @@ namespace LightLag.Tests
 
                     // 9. A window button (robotics controller Play) arrives after the delay.
                     yield return StartCoroutine(WindowButtonTest(v, mod, delay));
+
+                    // 10. A command sent through LightLagAPI is saved, arrives after the delay, and gets its node back.
+                    yield return StartCoroutine(ApiTest(v, mod, delay));
                 }
                 finally
                 {
@@ -168,6 +171,7 @@ namespace LightLag.Tests
             "SAS mode click arrives after the delay", "queued command is saved", "part-menu button arrives after the delay",
             "science dialog Discard arrives after the delay",
             "window button arrives after the delay",
+            "API command arrives after the delay",
         };
 
         /// <summary>
@@ -327,6 +331,75 @@ namespace LightLag.Tests
 
             // Put it back, outside player context, so it acts at once.
             if (arrived.HasValue) toggle.Invoke(controller, null);
+        }
+
+        private IEnumerator ApiTest(Vessel v, Assembly mod, double delay)
+        {
+            const string name = "API command arrives after the delay";
+            Type api = mod.GetType("LightLag.LightLagAPI");
+            MethodInfo queue = api?.GetMethod("QueueCommand");
+            MethodInfo isQueued = api?.GetMethod("IsQueued");
+            if (queue == null || isQueued == null) { Result("FAIL", name, "LightLagAPI.QueueCommand or IsQueued not found"); yield break; }
+
+            var node = new ConfigNode("TEST");
+            node.AddValue("Executor", "LightLag.Tests");
+            node.AddValue("ReflectionType", typeof(ApiCallback).AssemblyQualifiedName);
+            node.AddValue("ReflectionPopMethod", nameof(ApiCallback.Pop));
+            node.AddValue("QueueLabel", "Test command");
+            node.AddValue("Payload", "42");
+            ApiCallback.Reset(api);
+
+            double sent = Planetarium.GetUniversalTime();
+            var id = (Guid)queue.Invoke(null, new object[] { v.id, node });
+            if (id == Guid.Empty) { Result("FAIL", name, "QueueCommand returned Guid.Empty"); yield break; }
+            bool queuedBefore = (bool)isQueued.Invoke(null, new object[] { v.id, id });
+
+            // While it's queued, the vessel module's save holds the node.
+            VesselModule module = v.vesselModules.FirstOrDefault(m => m.GetType().FullName == "LightLag.LightLagVessel");
+            MethodInfo onSave = module?.GetType().GetMethod("OnSave", BindingFlags.Instance | BindingFlags.NonPublic);
+            string saved = null;
+            if (onSave != null)
+            {
+                var save = new ConfigNode("MODULE");
+                onSave.Invoke(module, new object[] { save });
+                ConfigNode command = save.GetNodes("COMMAND").FirstOrDefault(c => c.GetValue("id") == id.ToString());
+                saved = command?.GetValue("type") == "External" ? command.GetNode("DATA")?.GetNode("TEST")?.GetValue("Payload") : null;
+            }
+
+            while (ApiCallback.Got == null && Planetarium.GetUniversalTime() - sent < delay + 5.0)
+                yield return new WaitForFixedUpdate();
+            double slack = 3 * Time.fixedDeltaTime;
+            double t = ApiCallback.At - sent;
+            bool queuedAfter = (bool)isQueued.Invoke(null, new object[] { v.id, id });
+            bool pass = ApiCallback.Got != null && Math.Abs(t - delay) <= slack && ApiCallback.Got.GetValue("Payload") == "42"
+                        && ApiCallback.Running && queuedBefore && !queuedAfter && saved == "42";
+            Result(pass ? "PASS" : "FAIL", name, ApiCallback.Got == null
+                ? $"delay {delay:0.000} s, not arrived after {delay + 5.0:0.0} s"
+                : $"delay {delay:0.000} s, arrived after {t:0.000} s (slack {slack:0.000} s); payload {ApiCallback.Got.GetValue("Payload")}, " +
+                  $"saved {saved ?? "no"}, IsRunningCommand {ApiCallback.Running}, IsQueued before {queuedBefore} after {queuedAfter}");
+        }
+
+        /// <summary>The API test's callback: LightLag calls it by reflection when the command runs.</summary>
+        public static class ApiCallback
+        {
+            internal static ConfigNode Got;
+            internal static double At;
+            internal static bool Running;
+            private static PropertyInfo _running;
+
+            internal static void Reset(Type api)
+            {
+                Got = null;
+                Running = false;
+                _running = api.GetProperty("IsRunningCommand");
+            }
+
+            public static void Pop(ConfigNode node)
+            {
+                Got = node;
+                At = Planetarium.GetUniversalTime();
+                Running = _running != null && (bool)_running.GetValue(null);
+            }
         }
 
         private static int? PendingInputs(Vessel v)

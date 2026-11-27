@@ -51,21 +51,32 @@ CommNet only knows who can reach whom right now; nothing in KSP looks ahead. `Co
 - **RealAntennas mode:** off whenever RealAntennas is loaded (`ContactPredictor.RealAntennasMode`), and on any other network that isn't stock's `CommNetwork`; the flight computer and tooltip show no line. Turning it back on for RealAntennas is part of M5 (Q9).
 - **Self-check:** `ContactPredictor.ModelCheck` rebuilds the network, then runs the model at the current time; the harness checks it agrees with CommNet for a connected vessel. It doesn't need the setting.
 
-## 4. Public API (M4; sketch)
+## 4. Public API (M4)
 
-It mirrors the parts of `RemoteTech.API` that MechJebRTBridge uses, so the bridge's LightLag backend stays small:
+`LightLagAPI` (`src/LightLag/API/LightLagAPI.cs`) is for other mods, first MechJebRTBridge's LightLag backend. It's stable: members are only added, and `ApiVersion` (now 1) goes up when they are. It's a plain static class, so a mod can call it by reflection to avoid a hard dependency.
 
 ```csharp
 public static class LightLagAPI
 {
-    public static bool IsEnabled();
+    public const int ApiVersion = 1;
+    public static bool IsEnabled();                          // delay on in this game, CommNet running
+    public static bool Applies(Guid vesselId);               // commands are delayed (or refused with no signal)
     public static bool HasLocalControl(Guid vesselId);
-    public static double GetDelay(Guid vesselId);        // seconds; +Infinity when not connected and a signal is required, 0 when no delay applies
     public static bool IsConnected(Guid vesselId);
-    public static bool Enqueue(Guid vesselId, ConfigNode command);   // Executor, ReflectionType, ReflectionPopMethod, QueueLabel, caller data
-    public static event Action<Guid, ConfigNode> CommandArrived;
+    public static double GetDelay(Guid vesselId);            // one way; 0 when delay doesn't apply, +Infinity with no signal when one is required
+    public static double GetExtraDelay(Guid vesselId);       // the player's extra delay for the vessel
+    public static Guid QueueCommand(Guid vesselId, ConfigNode command);  // Guid.Empty if not queued
+    public static bool IsQueued(Guid vesselId, Guid commandId);          // still on its way or held on board
+    public static bool IsRunningCommand { get; }             // a queued command is running on board now
 }
 ```
+
+- **Sending:** the caller checks `Applies` (not delayed: run it now) and `IsConnected` (no signal: refuse it, as LightLag refuses its own). `QueueCommand` then queues it like the player's commands, through the same timing as `CommandHooks.TryQueue` but without its pass-through for tiny delays: the signal delay, the extra delay, the flight computer's countdown and Abort, and saving. It needs a loaded vessel.
+- **The node:** RemoteTech's `QueueCommandToFlightComputer` keys, so one node serves both. `ReflectionType` (assembly-qualified or full name) and `ReflectionPopMethod`, a public static method taking one `ConfigNode`, are required; `QueueLabel` is shown in the flight computer, `Executor` (the mod's name) when there's no label; anything else is the caller's. RemoteTech's `ReflectionExecuteMethod` and `ReflectionAbortMethod` aren't used: LightLag has no active commands that run each frame.
+- **Arrival:** `ExternalCommand` calls the method with a copy of the node when the command runs. Its return value is ignored (RemoteTech's means "stay active"); an exception is shown as the command failing.
+- **Cancel:** the player aborts it in the flight computer like any command; `IsQueued` turns false. There's no cancel call yet.
+- **Hooks:** commands run inside `CommandQueue.Process` in the physics frame, with `IsRunningCommand` true. A mod that delays calls with its own hooks should let calls through then, so a command that fires another one isn't delayed twice.
+- **Dropped from the sketch:** a `CommandArrived` event. The callback is the arrival notice, and it survives a reload where an event subscription wouldn't.
 
 ## 5. Discrete commands and persistence
 
@@ -85,7 +96,7 @@ LightLagVessel
     extraDelay = 0
     COMMAND
     {
-        type = SasMode          // Stage | ActionGroup | SasMode
+        type = SasMode          // Stage | ActionGroup | SasMode | PartEvent | PartField | Science | Method | External
         sent = 123456.78
         arrival = 123458.9
         execute = 123458.9
@@ -97,7 +108,7 @@ LightLagVessel
 
 An unreadable entry is dropped with a warning in the log.
 
-Part commands save their target as the part's `persistentId` plus the module's index and class name (`TARGET` nodes for buttons, inline for fields), the event or field name, and for fields the value as text (`value`), parsed against the field's type when it runs, plus `symmetry`. Science commands save the module (`TARGET`), the action, the module's callback method name and the data's `subjectID`; the data itself stays on board in the module and is found again by subject when the command runs. Window commands (`MethodCommand`) are saved only when they're calls on a part module with simple arguments (the module, declaring class, method, and each argument's type and value); others hold the live object and arguments in memory, aren't written to the save, and are lost on a reload or scene change.
+Part commands save their target as the part's `persistentId` plus the module's index and class name (`TARGET` nodes for buttons, inline for fields), the event or field name, and for fields the value as text (`value`), parsed against the field's type when it runs, plus `symmetry`. Science commands save the module (`TARGET`), the action, the module's callback method name and the data's `subjectID`; the data itself stays on board in the module and is found again by subject when the command runs. API commands (`ExternalCommand`, `type = External`) save their `id` and the caller's node as it was sent, inside a `DATA` node. Window commands (`MethodCommand`) are saved only when they're calls on a part module with simple arguments (the module, declaring class, method, and each argument's type and value); others hold the live object and arguments in memory, aren't written to the save, and are lost on a reload or scene change.
 
 **Not saved:** steering and throttle input in flight. What's still in `FlyByWireDelay`'s queue is lost on a scene change or reload; the vessel keeps the last input that had arrived.
 
@@ -166,6 +177,6 @@ Part commands save their target as the part's `persistentId` plus the module's i
 4. **M3:** part menus, moved ahead so a near-stock game is fully covered. **Code done; partly checked in game:** the science results dialog (by hand, 2026-11-25). Part-menu buttons and controls, and other mods' windows, not yet.
    - part-menu buttons and controls on the active vessel through the queue;
    - RemoteTech's exemption rules, `Rules/*.cfg`, one file per mod in the set, and the `skip_delay`/`skip_control` markers.
-5. **M4:** `LightLagAPI` and a LightLag backend in MechJebRTBridge.
+5. **M4:** `LightLagAPI` and a LightLag backend in MechJebRTBridge. **The API's code is done** (§4), with a harness test; not checked in game yet. The bridge backend is next.
 6. **M5:** RealAntennas checked in game, plus the adapter DLL and strength rules. Then whatever `COVERAGE.md` shows missing.
    - **Next contact in RealAntennas mode:** it's off today (`ContactPredictor.RealAntennasMode`). Pick an option from Q9, give the adapter its own model, and turn it back on.

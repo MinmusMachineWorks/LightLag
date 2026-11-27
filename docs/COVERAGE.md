@@ -27,6 +27,7 @@ Status: ✅ delayed, checked in game · 🧪 delayed in code, not yet checked in
 | KAS fuel transfer window | `KASLinkResourceConnector.OnGUI` | Not hooked: a continuous transfer while a button is held, like other resource transfers | later | ⬜ |
 | KerbNet window | — | ➖ View only (map modes, waypoints are bookkeeping) | — | ➖ |
 | Part-menu resource flow and priority toggles | `UIPartActionResource*` (not `SetFieldValue`) | Not hooked | later | ⬜ |
+| Commands other mods send through the API | `LightLagAPI.QueueCommand` | `ExternalCommand`: the caller's node, its callback run on arrival; saved | M4 | 🧪 (harness test) |
 | MechJeb autopilots | MechJebRTBridge seams | Bridge backend for `LightLagAPI` | M4 | ⬜ |
 | kOS | kOS connectivity manager | Needs kOS-side support | later | ⬜ |
 | Staging, action groups and SAS modes called by KSP or other mods (SAS falling back to stability assist, SAS switching off, missions, MechJeb staging) | Same methods, outside the player entry points | ➖ `CommandHooks` act only inside `PlayerInput`'s entry points: these calls run on board. MechJeb's commands are the bridge's job (M4) | — | ➖ (harness test passes, 2026-11-25) |

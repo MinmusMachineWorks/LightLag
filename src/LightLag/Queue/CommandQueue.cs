@@ -12,6 +12,11 @@ namespace LightLag
 
         public IReadOnlyList<QueuedCommand> Commands => _commands;
 
+        private static int _running;
+
+        /// <summary>True while a queued command runs on board (<see cref="LightLagAPI.IsRunningCommand"/>).</summary>
+        internal static bool Running => _running > 0;
+
         public int Count => _commands.Count;
 
         /// <summary>The command added last, or null.</summary>
@@ -74,7 +79,9 @@ namespace LightLag
                 }
 
                 string error = null;
-                PlayerInput.Bypass(() => error = command.Execute(vessel));
+                _running++;
+                try { PlayerInput.Bypass(() => error = command.Execute(vessel)); }
+                finally { _running--; }
                 double late = now - command.ExecuteUT;
                 Log.Info($"executed {command.TypeName} '{command.Label}' on {vessel.vesselName}"
                          + (late > 1.0 ? $", {late:0.#} s late" : "") + (error != null ? $": {error}" : ""));
