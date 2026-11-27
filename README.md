@@ -102,4 +102,4 @@ This writes `ckan/LightLag-dev.ckan` (gitignored). It carries LightLag's relatio
 
 ## License
 
-MIT. LightLag contains no code from RemoteTech (GPL-2.0) or RealAntennas (CC-BY-SA-4.0).
+MIT.

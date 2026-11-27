@@ -41,7 +41,7 @@ Read these before changing anything:
 **Also:**
 - Comments describe the code as it is, not its history ("was", "used to", "now").
 - If you find docs that are already wrong, fix them or flag them.
-- **Licensing:** LightLag is MIT. Don't copy code or configs from RemoteTech (GPL-2.0) or RealAntennas (CC-BY-SA-4.0). Reading them to learn how KSP behaves is fine.
+- **Licensing isn't a constraint.** These mods are for the owner's own use: GitHub only carries the work between their computers, and nothing goes to the forums or the main CKAN index. Code and configs from RemoteTech, RealAntennas or any other mod can be reused when that's the simplest route.
 
 ## Repo layout
 
