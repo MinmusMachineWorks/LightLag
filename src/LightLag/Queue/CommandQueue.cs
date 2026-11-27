@@ -19,6 +19,25 @@ namespace LightLag
 
         public int Count => _commands.Count;
 
+        /// <summary>
+        /// Whether the flight computer lists <paramref name="command"/> and the signal bar counts
+        /// it: false when it runs within the "Hide short commands" setting of being sent, so a
+        /// near-instant command doesn't flash up. It's queued and delayed all the same.
+        /// </summary>
+        public static bool Shown(QueuedCommand command)
+            => command.ExecuteUT - command.SentUT >= (LightLagParams.Current?.hideCommandsBelow ?? 0f);
+
+        /// <summary>How many commands are <see cref="Shown"/>.</summary>
+        public int ShownCount
+        {
+            get
+            {
+                int n = 0;
+                foreach (QueuedCommand command in _commands) if (Shown(command)) n++;
+                return n;
+            }
+        }
+
         /// <summary>The command added last, or null.</summary>
         public QueuedCommand Last { get; private set; }
 

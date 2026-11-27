@@ -32,7 +32,7 @@ namespace LightLag
                 case State.NoSignal: return null;
                 default: text = DelayService.Format(delay); break;
             }
-            int queued = LightLagVessel.For(vessel)?.Queue.Count ?? 0;
+            int queued = LightLagVessel.For(vessel)?.Queue.ShownCount ?? 0;
             return queued > 0 ? Localizer.Format("#LightLag_Bar_Queued", text, queued) : text;
         }
 
@@ -54,7 +54,7 @@ namespace LightLag
             }
             LightLagVessel module = LightLagVessel.For(vessel);
             if ((module?.Input?.PendingCount ?? 0) > 0) text += " · " + Localizer.Format("#LightLag_Readout_Pending");
-            int queued = module?.Queue.Count ?? 0;
+            int queued = module?.Queue.ShownCount ?? 0;
             if (queued > 0) text += " · " + Localizer.Format("#LightLag_Readout_Queued", queued);
             return text;
         }

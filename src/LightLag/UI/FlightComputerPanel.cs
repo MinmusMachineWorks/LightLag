@@ -129,7 +129,7 @@ namespace LightLag
                 if (!_extra.isFocused) _extra.text = module.ExtraDelay.ToString("0.###", CultureInfo.InvariantCulture);
             }
 
-            int queued = module.Queue.Count;
+            int queued = module.Queue.ShownCount;
             _queued.text = queued > 0 ? Localizer.Format("#LightLag_Console_Queued", queued) : "";
 
             switch (state)
@@ -247,7 +247,7 @@ namespace LightLag
 
         private void RefreshRows(Vessel vessel, LightLagVessel module, double now, double delay)
         {
-            IReadOnlyList<QueuedCommand> commands = module.Queue.Commands;
+            List<QueuedCommand> commands = module.Queue.Commands.Where(CommandQueue.Shown).ToList();
             foreach (QueuedCommand gone in _rowFor.Keys.Where(c => !commands.Contains(c)).ToList())
             {
                 UnityEngine.Object.Destroy(_rowFor[gone].Root);

@@ -31,6 +31,11 @@ namespace LightLag
         [GameParameters.CustomParameterUI("#LightLag_Settings_ThrottleOnLoss", toolTip = "#LightLag_Settings_ThrottleOnLoss_Tip")]
         public ThrottleOnSignalLoss throttleOnSignalLoss = ThrottleOnSignalLoss.Cut;
 
+        /// <summary>Commands that run within this many seconds of being sent aren't listed or counted (<see cref="CommandQueue.Shown"/>).</summary>
+        [GameParameters.CustomFloatParameterUI("#LightLag_Settings_HideBelow", toolTip = "#LightLag_Settings_HideBelow_Tip",
+            minValue = 0f, maxValue = 10f, stepCount = 101, displayFormat = "F1")]
+        public float hideCommandsBelow = 1f;
+
         /// <summary>Estimate the next contact or signal loss (<see cref="ContactPredictor"/>). Off by default: it's an estimate.</summary>
         [GameParameters.CustomParameterUI("#LightLag_Settings_SignalEstimates", toolTip = "#LightLag_Settings_SignalEstimates_Tip")]
         public bool signalEstimates = false;

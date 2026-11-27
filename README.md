@@ -23,12 +23,13 @@ The settings are under **Difficulty → Advanced**, next to stock CommNet's:
 | Light-speed delay | On | Delay commands to uncrewed vessels |
 | Speed of light multiplier | 1.00 | Above 1 shortens every delay; below 1 lengthens it |
 | Throttle on signal loss | Cut | Cut or hold an uncrewed vessel's throttle when it loses its signal. Only with stock's "Require Signal for Control" on |
+| Hide short commands (s) | 1.0 | Commands that run within this many seconds of being sent aren't listed in the flight computer or counted on the signal bar, so a short delay doesn't flash them up. They're still delayed. 0 shows every command |
 | Signal estimates | Off | The flight computer estimates the next contact or signal loss, with a Warp button. Stock CommNet only |
 
 ## What you see in flight
 
 The delay is part of the stock signal bar at the top left: a stopwatch icon after CommNet's signal icons, then the active vessel's state, in flight and in map view. The stopwatch is the flight computer button; hover it for the details, and click it to open the **flight computer**:
-- **2.31 s** (or **2.31 s · 2 queued**): the delay, and how many commands are queued. The tooltip also says whether stick and throttle input you gave is still on its way.
+- **2.31 s** (or **2.31 s · 2 queued**): the delay, and how many commands are queued (not counting those under "Hide short commands"). The tooltip also says whether stick and throttle input you gave is still on its way.
 - **No signal:** just the stopwatch, grey, with no text; stock's red control icon ("No probe control") says why. It still opens the flight computer, and with "Signal estimates" on, its tooltip gives the next contact (below). With a signal, the tooltip gives the expected signal loss. Stock's "Require Signal for Control" is on, so stock locks every control, and LightLag sends nothing new. Input already sent still arrives; then the stick centers, and the throttle is cut or held per the setting.
 - **No delay** (no signal, none required): "Require Signal for Control" is off, so stock gives the vessel partial control without a signal, and there's no path to delay along. What stock allows (staging, action groups, SAS and RCS) acts at once; stock still locks the stick, throttle and translation.
 - **Local:** crew aboard, or an EVA kerbal. No delay.
@@ -46,7 +47,7 @@ The **flight computer** (click the stopwatch on the signal bar) is LightLag's co
 - **Next contact or signal loss** (with the "Signal estimates" setting on): with no signal, when the vessel should get one back, and through which station or relay ("Next contact in about 12m 30s, via …"); with a signal, when it's expected to be lost ("Signal loss in about 25m 10s"). Or that neither is expected within the search (two orbits, or two days when landed, up to 50 days). It's an estimate: it assumes everything coasts on its current orbit, with no burns or staging, and leaves out plasma blackout and power running out. Stock CommNet only rechecks its links every few seconds (in time warp, every half-second of real time), so the signal bar can change a little after the estimated moment. It needs stock CommNet: with RealAntennas installed it's off, and the line isn't shown.
 - **Warp:** stock's warp-to, as the map's "Warp Here" uses. Next to the estimate it warps to 10 s before the contact, or before the loss with the delay plus 30 s to spare, so a last command sent then still arrives. On a queued command it warps to 10 s before the command runs.
 - **Stick and throttle:** how long until the last of your stick and throttle input arrives. It can't be cancelled.
-- **Countdowns:** when each command arrives and when it runs.
+- **Countdowns:** when each command arrives and when it runs. Commands under "Hide short commands" aren't listed; they run as usual.
 - **Abort:** an abort is a signal too, so it's allowed only if it can reach the vessel before the command runs.
 - **Extra delay:** new commands run at least this many seconds after you send them, even if the signal arrives sooner. Use it to time a command, for example staging at a moment you pick. It's saved per vessel.
 
