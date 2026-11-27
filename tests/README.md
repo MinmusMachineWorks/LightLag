@@ -62,3 +62,31 @@ The harness temporarily lowers the speed-of-light multiplier so that the delay i
 | assembly loaded | `LightLag.dll` is in `AssemblyLoader.loadedAssemblies` |
 | settings type present | `LightLag.LightLagParams` exists |
 | settings registered in the current game | `CustomParams(LightLagParams)` returns the settings node |
+
+## Checking on RealAntennas (M5)
+
+A pass through LightLag with RealAntennas installed: the harness first, then what it can't cover, by hand.
+
+**Setup:**
+- **Save:** a new sandbox save. RealAntennas reworks every antenna, and sandbox gives its top tech level (its "Maximum Tech Level" setting).
+- **Difficulty → Advanced:** "Require Signal for Control" on (stock's CommNet section; LightLag's settings sit there too). RealAntennas has its own section.
+- **Vessel:** the flight-test vessel above, plus a dish (Communotron 88-88 or HG-5), a retractable solar panel, a thermometer and, with Breaking Ground, a robotics controller. A new dish points at Kerbin's center by default.
+- **Orbit:** a low Mun orbit (Alt+F12 → Cheats → Set Orbit), so the vessel passes behind the Mun. Set the speed-of-light multiplier to 0.01, for a delay of a few seconds.
+
+**Harness:** run the flight tests while the vessel has a signal. Every test should pass, except "next-contact model agrees with CommNet", which is skipped in RealAntennas mode. The log has `signal estimate: off in RealAntennas mode`.
+
+**By hand:**
+
+| Check | Expect |
+|---|---|
+| Signal bar and flight computer | The stopwatch shows the delay. The control path lists RealAntennas' ground stations, not only KSC. There's no next-contact or signal-loss line |
+| Steering and translation | The probe responds after the delay |
+| Stage, action group, SAS and RCS keys | Queued in the flight computer; they act when the countdown ends |
+| Part-menu button (extend the panel) | Queued; extends after the delay |
+| Dish target: Antenna Targeting → Body Center → Mun | Queued as "Point antenna (not saved)"; RealAntennas' target changes only after the delay |
+| Hide short commands | With the multiplier back at 1 (a delay of about 0.04 s), toggling the lights never shows "1 queued". With the setting at 0, it flashes up |
+| Signal loss behind the Mun | The stopwatch turns grey; stock locks the controls; a command sent just before still runs; the throttle is cut |
+| Plasma blackout (stock setting on): re-enter a probe at Kerbin | Record whether the signal drops. RealAntennas looks to skip stock's plasma rule |
+| MechJebRTBridge harness | Passes, as it does without RealAntennas |
+
+Afterwards, mark what passed in `docs/COVERAGE.md` and the M5 line of `docs/DESIGN.md`.
